@@ -1,0 +1,57 @@
+- project designed to be built in pieces
+- start with command line
+    - file name specified in command line  i.e. ./bank -v -f spec_reg.txt < spec_out
+    - when read registration file, either
+        - read entire line with getline() and string functions to break it into pieces 
+            - like .find and .substr
+        - getline(filestream, stringtoReadInto, '|') --> read up to but not including the vertical bar char 
+            - gets rid of |
+            - for last one just getline(fstream, stringtoReadInto) --> no bar at the end to stop at
+- in the tip section near bottom, section called being partially done
+    - even if written every command, should still do the second part
+    - first part is if got command thats unfinished, log ing and out, not place command
+    - if recognize that we have ae place command, do a get line and throw it away
+    - any incomplete command getline get whole line throw it away
+ - other important thing, inside of loops need for cin 
+    - one for operations one for queries --> or one for both
+    - if(cin.fail()){ cerr << ; exit(1); }
+        - if make mistake in what we're reading, we go into fail state
+- when start working on commands
+    - operations
+        - order suggested:
+            - # (comment) //don't assume there's a space: #this test check for first char in string of first line
+            - $$$ (end of operations possibly start of queries, if there are any)
+                - always exists
+            - login
+            - logout
+            - place
+        - when reading the commands, most of the commands should be read with >> with string
+        - every command is well formed in that once you read one thing you know what comes next
+        - for the comment, know that it is a comment, then i would getline the rest of it
+            - dont use getline for anything but the comment 
+- make a bank class and have some other data types inside of that 
+    - a user
+    - a transaction
+    - those will then be used for place command, etc.
+- when reading in the registration file and got those time stamps
+    - that's when user's account was created
+- when reading in the command file and got those time stamps
+    - could be when the command is supposed to happen
+    - could be when supposed to take place with the place command wiht the execution date
+-timestamps:
+    - 08:01:01:40:22:34
+        - if read like this and stored like this, takes up lots of memory
+        - when compare strings to say like "hey is this user trying to give me a time stamps
+        that's after they've been created" --> bc can't transfer before account exists
+        - would be really slow comparison in doing such (if stored this way)
+        - would be really helpful if read with the colons, then converted to a number
+        - number would now be 8 bytes, just have to compare 
+        - store in a uint64_t
+        - must convert this to uint64_t, when doing such, make constants
+        - take this 2 digit and multiply it by certian amount to move it etc
+        - might want to multiply by *100ULL --> bascially equivalent to a uint64_t
+        - might have problems converting if not doing this
+- as start reading registration, must keep info for user: time created, name, pin num, balance
+- as start going through things like place command, especially queries, will discover that we have
+ to add new info to transaction and user, might even have to make new containers entirely
+- if bank class, can add things to the bank, user struct/class, transaction struct/class
