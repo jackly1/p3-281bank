@@ -55,3 +55,24 @@
 - as start going through things like place command, especially queries, will discover that we have
  to add new info to transaction and user, might even have to make new containers entirely
 - if bank class, can add things to the bank, user struct/class, transaction struct/class
+- place command
+    - when have place command, its guaranteed that the time stamps will be non-decreasing
+    - place 11:22:33:44:55:66, if another place command after that, won't have lower time stamp
+        - could be same, could be higher
+    - over at end is exec_date --> when the place command is supposed to be carreid out    
+        - could be up to 3 days in the future, not guaranteed to be non decreasing
+    - must have data structure for pending transactions that will make sure that they come out in the right order
+        -use deque/stack/queue
+    - let's say someone else does a place command, 
+        - time stamp is 11:22:35:00:...
+        - we would say at this timestamp, i've got to processa nay queries/transactions that 
+         should have happened before now,
+            - take out of pending transactions, execute it, then produce the output of the place
+            command itself
+    - if wrong at this line double check when transactions get processed error is from the above
+- when working on query commands especially, going to be discovering that need extra data
+    - unordered maps and unordered sets are really cool, answers to lots but NOT EVERYTHING
+    - when things happen in a certain order and have to be done from timestamp 1 to timestamp 2,
+    a sorted container and binary searching is better 
+    - maps are a memory haul, think simpler when complicated is not needed
+        - might go over memory
