@@ -29,25 +29,25 @@ class bank{
                 void setTimestamp(const uint64_t &ts){
                     regTimestamp = ts;
                 }
-                const uint64_t getTimestamp(){
+                uint64_t getTimestamp(){
                     return regTimestamp;
                 }
                 void setID(const string &i){
                     id = i;
                 }
-                const string getID(){
+                string getID(){
                     return id;
                 }
                 void setStart(const uint64_t &n){
                     startBalance = n;
                 }
-                const uint64_t getStart(){
+                uint64_t getStart(){
                     return startBalance;
                 }
                 void setPin(const uint64_t &p){
                     pin = p;
                 }
-                const uint64_t getPin(){
+                uint64_t getPin(){
                     return pin;
                 }
                 void makeActive(){
@@ -56,7 +56,7 @@ class bank{
                 void deActive(){
                     activeSession = false;
                 }
-                const bool getActive(){
+             bool getActive(){
                     return activeSession;
                 }
         };
@@ -82,25 +82,25 @@ class bank{
                 void setIP(const uint64_t &n){
                     senderIP = n;
                 }
-                const uint64_t getIP(){
+                uint64_t getIP(){
                     return senderIP;
                 }
                 void setSender(const string &s){
                     sender = s;
                 }
-                const string getSender(){
+                string getSender(){
                     return sender;
                 }
                 void setReceiver(const string &r){
                     receiver = r;
                 }
-                const string getReceiver(){
+                string getReceiver(){
                     return receiver;
                 }
                 void setAmount(const uint64_t &n){
                     amount = n;
                 }
-                const uint64_t getAmount(){
+                uint64_t getAmount(){
                     return amount;
                 }
                 void setExecutionDate(const uint64_t &n){
@@ -180,14 +180,14 @@ class bank{
                 }
             }
             //sender exists
-            if(continueCheck && existingUsers[t.getSender()] == existingUsers.end()){
+            if(continueCheck && (existingUsers.find(t.getSender()) == existingUsers.end())){
                 continueCheck = false;
                 if(verbose){
                     cout << "Sender " << t.getSender() << " does not exist.\n";
                 }
             }
             //recipient exists
-            if(continueCheck && existingUsers[t.getReceiver()] == existingUsers.end()){
+            if(continueCheck && existingUsers.find(t.getReceiver()) == existingUsers.end()){
                 continueCheck = false;
                 if(verbose){
                     cout << "Recipient " << t.getReceiver() << " does not exist.\n";
@@ -216,16 +216,23 @@ class bank{
             return false;
         }
 
+        bool senderReceiverHaveEnough(Transaction &t){
+            //the recipient must have enough money in their account to pay the fee before they can receive the transfer. If the transaction can’t happen and verbose mode is on, print the following message:
+            //Insufficient funds to process transaction <transaction_id>.
+
+            //if above is the case, discard transaction, don't appear in user's completed
+        }
+
         void ridComment(){
             string junkline;
             getline(cin, junkline);
         }
         uint64_t convertIP(const string &s){
             //finish this with correct implementation
-            
+            return 0;
         }
         //logs user in according to rules
-        bool login(){
+        void login(){
             string userID;
             uint64_t pin;
             string longFormIP;
@@ -239,17 +246,15 @@ class bank{
                     if(verbose){
                         cout << "User " << userID << " logged in.\n";
                     }
-                    return true;
+                    return;
                 }
-                //return false;
             }
             if(verbose){
                 cout << "Failed to log in " << userID << ".\n";
             }
-            return false;
         }
         //logs user out according to rules
-        bool logout(){
+        void logout(){
             string userID;
             string longFormIP;
             uint64_t ip;
@@ -278,9 +283,10 @@ class bank{
                     }
                 }
             }
+
         }
 
-        bool place(){
+        void place(){
             // Usage: place <TIMESTAMP> <IP> <SENDER> <RECIPIENT> <AMOUNT> <EXEC_DATE> <o/s>
             // This command will have 7 parts, the timestamp at which the order is placed, 
             //     the IP of the sender, 
@@ -312,7 +318,8 @@ class bank{
                 isGood = checkFraudulent(currTransaction);
             }
             //now add the transaction
-            if(isGood){
+            if(isGood && senderReceiverHaveEnough(currTransaction)){
+                pendingTs.push(&currTransaction);
                 if(verbose){
                     cout << "Transaction at " << stringFormtimestamp << ": $" << amount 
                     << " from " << sender << " to " << recipient << " at " << stringFormExecDate << ".\n";
@@ -348,6 +355,7 @@ class bank{
                 place();
             }
         }
+
         void readCommands(){
             readRegistrationFile();
             string curr;
@@ -357,6 +365,7 @@ class bank{
                 cin >> curr;
             }
         }
+
         void readRegistrationFile(){
             fstream fin(filename);
             while(fin.good()){
