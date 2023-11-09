@@ -14,53 +14,7 @@
 using namespace std;
 class bank{
     private:
-        class User{
-            private:
-                uint64_t regTimestamp;
-                string id;
-                uint64_t pin;
-                uint64_t startBalance;
-                bool activeSession;
-            public:
-                //constructor
-                User(const uint64_t &ts,const string &i, const uint64_t &p, const uint64_t &sb)
-                : regTimestamp(ts), id(i), pin(p), startBalance(sb), activeSession(false){}
-
-                void setTimestamp(const uint64_t &ts){
-                    regTimestamp = ts;
-                }
-                uint64_t getTimestamp(){
-                    return regTimestamp;
-                }
-                void setID(const string &i){
-                    id = i;
-                }
-                string getID(){
-                    return id;
-                }
-                void setStart(const uint64_t &n){
-                    startBalance = n;
-                }
-                uint64_t getStart(){
-                    return startBalance;
-                }
-                void setPin(const uint64_t &p){
-                    pin = p;
-                }
-                uint64_t getPin(){
-                    return pin;
-                }
-                void makeActive(){
-                    activeSession = true;
-                }
-                void deActive(){
-                    activeSession = false;
-                }
-             bool getActive(){
-                    return activeSession;
-                }
-        };
-        class Transaction{
+    class Transaction{
             private:
                 uint64_t placementTime;
                 uint64_t senderIP;
@@ -68,10 +22,13 @@ class bank{
                 string receiver;
                 uint64_t amount;
                 uint64_t executionDate;
+                string stringFromExecDate;
+                bool shared;
+                uint64_t transactionID;
             public:
             //constructor
-                Transaction(const uint64_t &pt,const uint64_t &si, const string &s, const string &r, const uint64_t &a, const uint64_t &ed)
-                : placementTime(pt), senderIP(si), sender(s), receiver(r), amount(a), executionDate(ed){}
+                Transaction(const uint64_t &pt,const uint64_t &si, const string &s, const string &r, const uint64_t &a, const uint64_t &ed, const bool &o, const string &sed, const uint64_t &tid)
+                : placementTime(pt), senderIP(si), sender(s), receiver(r), amount(a), executionDate(ed), shared(o), stringFromExecDate(sed), transactionID(tid){}
 
                 void setPlacementTime(const uint64_t &i){
                     placementTime = i;
@@ -109,7 +66,70 @@ class bank{
                 uint64_t getExecutionDate(){
                     return executionDate;
                 }
+                bool isShared(){
+                    return shared;
+                }
+                string getExecString(){
+                    return stringFromExecDate;
+                }
+                uint64_t getTransactionID(){
+                    return transactionID;
+                }
         };
+        class User{
+            private:
+                uint64_t regTimestamp;
+                string id;
+                uint64_t pin;
+                uint64_t balance;
+                bool activeSession;
+                vector<Transaction*> userTransactions;
+            public:
+                //constructor
+                User(const uint64_t &ts,const string &i, const uint64_t &p, const uint64_t &sb)
+                : regTimestamp(ts), id(i), pin(p), balance(sb), activeSession(false){}
+
+                void setTimestamp(const uint64_t &ts){
+                    regTimestamp = ts;
+                }
+                uint64_t getTimestamp(){
+                    return regTimestamp;
+                }
+                void setID(const string &i){
+                    id = i;
+                }
+                string getID(){
+                    return id;
+                }
+                void addMoney(const uint64_t &n){
+                    balance += n;
+                }
+                void removeMoney(const uint64_t &n){
+                    balance -= n;
+                }
+                uint64_t getBalance(){
+                    return balance;
+                }
+                void setPin(const uint64_t &p){
+                    pin = p;
+                }
+                uint64_t getPin(){
+                    return pin;
+                }
+                void makeActive(){
+                    activeSession = true;
+                }
+                void deActive(){
+                    activeSession = false;
+                }
+                bool getActive(){
+                    return activeSession;
+                }
+                void addTransaction(Transaction* t){
+                    userTransactions.push_back(t);
+                }
+        };
+        
 
         class executionComparator{
             public:
@@ -118,7 +138,7 @@ class bank{
                         return a->getExecutionDate() > b->getExecutionDate();
                     }
                     else{
-                        return a->getPlacementTime() > b->getPlacementTime();
+                        return a->getTransactionID() > b->getTransactionID();
                     }
                 }
         };
@@ -129,9 +149,10 @@ class bank{
         bool verbose = false;
         unordered_map<string, User*> existingUsers;
         unordered_map<string, unordered_set<uint64_t>> userIPs;
-        priority_queue<Transaction*, vector<Transaction*>, executionComparator> pendingTs;
-        
-        
+        priority_queue<Transaction*, vector<Transaction*>, executionComparator> pendingTransactions;
+        deque<pair<Transaction*, uint64_t>> tMasterList;
+        uint64_t transactionIDCounter = 0;
+
         void throwFileError(){
             cerr << "file name not provided\n";
             exit(1);
@@ -154,6 +175,10 @@ class bank{
             getline(sin, curr);
             nums.push_back(((uint64_t)stoi(curr)));
             return summarizeTS(nums);
+        }
+
+        uint64_t generateNewID(){
+            return transactionIDCounter++;
         }
 
 
@@ -216,11 +241,11 @@ class bank{
             return false;
         }
 
-        bool senderReceiverHaveEnough(Transaction &t){
-            //the recipient must have enough money in their account to pay the fee before they can receive the transfer. If the transaction can’t happen and verbose mode is on, print the following message:
-            //Insufficient funds to process transaction <transaction_id>.
-
-            //if above is the case, discard transaction, don't appear in user's completed
+        bool hasSufficientFunds(string userID, uint64_t amountDue){
+            if(existingUsers[userID]->getBalance() - amountDue < 0){
+                return false;
+            }
+            return true;
         }
 
         void ridComment(){
@@ -312,31 +337,27 @@ class bank{
             uint64_t timestamp = convertTimestamp(stringFormtimestamp);
             uint64_t execDate = convertTimestamp(stringFormExecDate);
             uint64_t ip = convertIP(longFormIP);
-            Transaction currTransaction(timestamp, ip, sender, recipient, amount, execDate);
+            bool shared;
+            if(oORs == 'o'){
+                shared = false;
+            }
+            else if(oORs == 's'){
+                shared = true;
+            }
+            Transaction currTransaction(timestamp, ip, sender, recipient, amount, execDate, shared, stringFormExecDate, generateNewID());
             bool isGood = validateTransaction(currTransaction);
             if(isGood){
                 isGood = checkFraudulent(currTransaction);
             }
-            //now add the transaction
-            if(isGood && senderReceiverHaveEnough(currTransaction)){
-                pendingTs.push(&currTransaction);
+            //now execute transactions <= the transaction
+            executeLessThanEqual(&currTransaction);
+            if(isGood){
                 if(verbose){
                     cout << "Transaction at " << stringFormtimestamp << ": $" << amount 
                     << " from " << sender << " to " << recipient << " at " << stringFormExecDate << ".\n";
                 }
+                pendingTransactions.push(&currTransaction);
             }
-            //*****Logged out users can’t place transaction requests without logging back in. *******
-            
-            // This is used to place a transaction to be executed in the future. 
-            // You should make sure that all place commands contain non-decreasing 
-            // timestamps (see the Error-checking section). 
-            // As per international guidelines, 281Bank is only allowed to place 
-            // transactions that are processed up to three days ahead of the given 
-            // timestamp, meaning EXEC_DATE - TIMESTAMP <= 3 days.
-
-            // When producing the output of the place command, the output should 
-            // always occur in non-decreasing order of timestamps, in terms of 
-            // when they are placed and actually executed.
         }
         bool callCommand(const string &commandName){
             //bool successLogin;
@@ -356,6 +377,68 @@ class bank{
             }
         }
 
+        bool hasBeenLoyal(const string& userID, const uint64_t &executionDate){
+            if(existingUsers[userID]->getTimestamp() - convertTimestamp("05:00:00:00:00:00") >= 0){
+                return true;
+            }
+            return false;
+        }
+
+        uint64_t calcFee(const uint64_t &amount){
+            uint64_t fee = (uint64_t)((int)amount / 100);
+            if(fee < 10){
+                return 10;
+            }
+            else if (fee > 450){
+                return 450;
+            }
+            else{
+                return fee;
+            }
+        }
+
+        void execute(Transaction* t){
+            if(!t->isShared()){
+                uint64_t totalAmt = t->getAmount();
+                uint64_t fee = calcFee(t->getAmount());
+                if(hasBeenLoyal(t->getSender(), t->getExecutionDate())){
+                    fee = (fee * 3) / 4;
+                }
+                totalAmt += fee;
+                if(hasSufficientFunds(t->getSender(), totalAmt)){
+                    existingUsers[t->getSender()]->removeMoney(totalAmt);
+                    existingUsers[t->getReceiver()]->addMoney(t->getAmount());
+                    if(verbose){
+                        cout << "Transaction executed at " << t->getExecString() << 
+                        ": $" << t->getAmount() << " from " << t->getSender() << " to " 
+                        << t->getReceiver() << ".\n";
+                    }
+                }
+                else{
+                    if(verbose){
+                        //TODO: finish below line with the transaction ID, figure out what that should be
+                        cout << "Insufficient funds to process transaction " << ".\n";
+                    }
+                }
+            }else{
+
+            }
+        }
+
+        void executeLessThanEqual(Transaction* t){
+            while(pendingTransactions.top()->getExecutionDate() <= t->getPlacementTime()){
+                execute(pendingTransactions.top());
+                pendingTransactions.pop();
+            }
+        }
+
+        void executeTransactions(){
+            while(!pendingTransactions.empty()){
+                execute(pendingTransactions.top());
+                pendingTransactions.pop();
+            }
+        }
+
         void readCommands(){
             readRegistrationFile();
             string curr;
@@ -364,6 +447,7 @@ class bank{
                 callCommand(curr);
                 cin >> curr;
             }
+            executeTransactions();
         }
 
         void readRegistrationFile(){
