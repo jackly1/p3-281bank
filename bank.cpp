@@ -10,6 +10,7 @@
 #include <queue>
 #include <unordered_map>
 #include <unordered_set>
+#include <set>
 
 using namespace std;
 class bank{
@@ -27,8 +28,8 @@ class bank{
                 uint64_t transactionID;
             public:
             //constructor
-                Transaction(const uint64_t &pt,const uint64_t &si, const string &s, const string &r, const uint64_t &a, const uint64_t &ed, const bool &o, const string &sed, const uint64_t &tid)
-                : placementTime(pt), senderIP(si), sender(s), receiver(r), amount(a), executionDate(ed), shared(o), stringFromExecDate(sed), transactionID(tid){}
+                Transaction(const uint64_t &pt,const uint64_t &si, const string &s, const string &r, const uint64_t &a, const uint64_t &ed, const bool &o, const string &sed)
+                : placementTime(pt), senderIP(si), sender(s), receiver(r), amount(a), executionDate(ed), stringFromExecDate(sed), shared(o), transactionID(0){}
 
                 void setPlacementTime(const uint64_t &i){
                     placementTime = i;
@@ -71,6 +72,9 @@ class bank{
                 }
                 string getExecString(){
                     return stringFromExecDate;
+                }
+                void setTransactionID(const uint64_t &n){
+                    transactionID = n;
                 }
                 uint64_t getTransactionID(){
                     return transactionID;
@@ -142,6 +146,17 @@ class bank{
                     }
                 }
         };
+        class chronologicalComparator{
+            public:
+                bool operator()(Transaction *a, Transaction *b){
+                    if(a->getPlacementTime() != b->getPlacementTime()){
+                        return a->getPlacementTime() > b->getPlacementTime();
+                    }
+                    else{
+                        return a->getTransactionID() > b->getTransactionID();
+                    }
+                }
+        };
 
 
         bool file = false;
@@ -150,7 +165,8 @@ class bank{
         unordered_map<string, User*> existingUsers;
         unordered_map<string, unordered_set<uint64_t>> userIPs;
         priority_queue<Transaction*, vector<Transaction*>, executionComparator> pendingTransactions;
-        deque<pair<Transaction*, uint64_t>> tMasterList;
+        set<Transaction*, chronologicalComparator> chronologicalTransactions;
+        deque<Transaction*> transactionMasterList;
         uint64_t transactionIDCounter = 0;
 
         void throwFileError(){
@@ -253,8 +269,17 @@ class bank{
             getline(cin, junkline);
         }
         uint64_t convertIP(const string &s){
-            //finish this with correct implementation
-            return 0;
+            return (uint64_t)(stoi(s));
+        }
+
+        string removeColons(const string &s){
+            string toReturn;
+            for(int i = 0; i < s.length(); i++){
+                if(s[i] != ':'){
+                    toReturn += s[i];
+                }
+            }
+            return toReturn;
         }
         //logs user in according to rules
         void login(){
@@ -344,7 +369,7 @@ class bank{
             else if(oORs == 's'){
                 shared = true;
             }
-            Transaction currTransaction(timestamp, ip, sender, recipient, amount, execDate, shared, stringFormExecDate, generateNewID());
+            Transaction currTransaction(timestamp, ip, sender, recipient, amount, execDate, shared, stringFormExecDate);
             bool isGood = validateTransaction(currTransaction);
             if(isGood){
                 isGood = checkFraudulent(currTransaction);
@@ -352,14 +377,18 @@ class bank{
             //now execute transactions <= the transaction
             executeLessThanEqual(&currTransaction);
             if(isGood){
+                currTransaction.setTransactionID(generateNewID());
                 if(verbose){
-                    cout << "Transaction at " << stringFormtimestamp << ": $" << amount 
-                    << " from " << sender << " to " << recipient << " at " << stringFormExecDate << ".\n";
+                    cout << "Transaction placed at " << removeColons(stringFormtimestamp) << ": $" << amount 
+                    << " from " << sender << " to " << recipient << " at " << removeColons(stringFormExecDate) << ".\n";
                 }
+                transactionMasterList.push_back(&currTransaction);
                 pendingTransactions.push(&currTransaction);
+                chronologicalTransactions.insert(&currTransaction);
             }
         }
-        bool callCommand(const string &commandName){
+
+        void callCommand(const string &commandName){
             //bool successLogin;
             if(commandName[0] == '#'){
                 ridComment();
@@ -377,7 +406,7 @@ class bank{
             }
         }
 
-        bool hasBeenLoyal(const string& userID, const uint64_t &executionDate){
+        bool hasBeenLoyal(const string& userID){
             if(existingUsers[userID]->getTimestamp() - convertTimestamp("05:00:00:00:00:00") >= 0){
                 return true;
             }
@@ -401,7 +430,7 @@ class bank{
             if(!t->isShared()){
                 uint64_t totalAmt = t->getAmount();
                 uint64_t fee = calcFee(t->getAmount());
-                if(hasBeenLoyal(t->getSender(), t->getExecutionDate())){
+                if(hasBeenLoyal(t->getSender())){
                     fee = (fee * 3) / 4;
                 }
                 totalAmt += fee;
@@ -409,19 +438,50 @@ class bank{
                     existingUsers[t->getSender()]->removeMoney(totalAmt);
                     existingUsers[t->getReceiver()]->addMoney(t->getAmount());
                     if(verbose){
-                        cout << "Transaction executed at " << t->getExecString() << 
+                        cout << "Transaction executed at " << removeColons(t->getExecString()) << 
                         ": $" << t->getAmount() << " from " << t->getSender() << " to " 
                         << t->getReceiver() << ".\n";
                     }
                 }
                 else{
                     if(verbose){
-                        //TODO: finish below line with the transaction ID, figure out what that should be
-                        cout << "Insufficient funds to process transaction " << ".\n";
+                        cout << "Insufficient funds to process transaction " << t->getTransactionID() << ".\n";
                     }
                 }
             }else{
-
+                //shared means the fee is shared between the two parties
+                uint64_t totalAmt = t->getAmount();
+                uint64_t fee = calcFee(t->getAmount());
+                if(hasBeenLoyal(t->getSender())){
+                    fee = (fee * 3) / 4;
+                }
+                //first make both set equal to fee/2
+                uint64_t senderFee = fee/2;
+                uint64_t receiverFee = fee/2;
+                //if fee is odd
+                if(fee % 2 != 0){
+                    //make the sender fee a rounded up fee/2 
+                    senderFee = (uint64_t)ceil(fee/2.0);
+                    //make the reciever a truncated fee/2
+                    receiverFee = fee/2;
+                }
+                totalAmt += senderFee;
+                if(hasSufficientFunds(t->getSender(), totalAmt) && hasSufficientFunds(t->getReceiver(), receiverFee)){
+                    //remove fees from both + amount from sender
+                    existingUsers[t->getSender()]->removeMoney(totalAmt);
+                    existingUsers[t->getReceiver()]->removeMoney(receiverFee);
+                    existingUsers[t->getReceiver()]->addMoney(t->getAmount());
+                    if(verbose){
+                        cout << "Transaction executed at " << removeColons(t->getExecString()) << 
+                        ": $" << t->getAmount() << " from " << t->getSender() << " to " 
+                        << t->getReceiver() << ".\n";
+                    }
+                }
+                else{
+                    if(verbose){
+                        cout << "Insufficient funds to process transaction " << t->getTransactionID() << ".\n";
+                    }
+                }
             }
         }
 
@@ -439,6 +499,61 @@ class bank{
             }
         }
 
+        void runList(){
+            string stringForX;
+            string stringForY;
+            cin >> stringForX >> stringForY;
+            
+            uint64_t x = convertTimestamp(stringForX);
+            uint64_t y = convertTimestamp(stringForY);
+
+            uint64_t numTransactions;
+            
+            for(auto &t: chronologicalTransactions){
+                if(t->getExecutionDate() >= x && t->getExecutionDate() < y){
+                    if(t->getAmount() != 1){
+                        cout << "  " << t->getTransactionID() << ": " << t->getSender() 
+                        << " sent " << t->getAmount() << " dollars to " << t->getReceiver()
+                        << " at " << removeColons(t->getExecString()) << ".\n";
+                    }
+                    else{
+                        cout << t->getTransactionID() << ": " << t->getSender() 
+                        << " sent " << t->getAmount() << " dollar to " << t->getReceiver()
+                        << " at " << removeColons(t->getExecString()) << ".\n";
+                    }
+                    numTransactions++;
+                }
+            }
+            cout << "There were " << numTransactions << " transactions that were placed between time "
+            << stringForX << " to " << stringForY << ".\n";
+        }
+
+        void runBankRevenue(){
+
+        }
+
+        void runHistory(){
+
+        }
+
+        void runSummarizeDay(){
+
+        }
+        void readQueries(){
+            string curr;
+            while(cin >> curr){
+                if(curr == "l"){
+                    runList();
+                }else if(curr == "r"){
+                    runBankRevenue();
+                }else if(curr == "h"){
+                    runHistory();
+                }else if(curr == "s"){
+                    runSummarizeDay();
+                }
+            }
+        }
+
         void readCommands(){
             readRegistrationFile();
             string curr;
@@ -448,6 +563,8 @@ class bank{
                 cin >> curr;
             }
             executeTransactions();
+
+            readQueries();
         }
 
         void readRegistrationFile(){

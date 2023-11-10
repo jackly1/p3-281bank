@@ -1,0 +1,26 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "(lldb) Debug Project",
+            "type": "lldb",
+            "request": "launch",
+            "preLaunchTask": "build debug executable",
+            "program": "${workspaceFolder}/zombbb_debug",
+            "stdio": [
+                "Sample-large.txt", // redirect stdin
+                "output.txt", // redirect stdout
+                null // redirect stderr
+            ],
+            "args": ["-mvs",
+            "100",
+            "<",
+            "Sample-large.txt",
+            ">",
+            "output.txt"],
+            "stopOnEntry": false,
+            "cwd": "${workspaceFolder}",
+            "postDebugTask": "clean workspace"
+        },
+    ]
+}
