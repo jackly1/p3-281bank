@@ -13,169 +13,167 @@
 #include <set>
 
 using namespace std;
+class Transaction{
+    private:
+        uint64_t placementTime;
+        string stringFormPlacementTime;
+        uint64_t senderIP;
+        string sender;
+        string receiver;
+        uint64_t amount;
+        uint64_t executionDate;
+        string stringFromExecDate;
+        bool shared;
+        uint64_t transactionID;
+    public:
+    //constructor
+        Transaction(const uint64_t &pt, const string &sfpt, const uint64_t &si, const string &s, const string &r, const uint64_t &a, const uint64_t &ed, const bool &o, const string &sed)
+        : placementTime(pt), stringFormPlacementTime(sfpt), senderIP(si), sender(s), receiver(r), amount(a), executionDate(ed), stringFromExecDate(sed), shared(o), transactionID(0){}
+
+        void setPlacementTime(const uint64_t &i){
+            placementTime = i;
+        }
+        uint64_t getPlacementTime(){
+            return placementTime;
+        }
+        string getPlacementString(){
+            return stringFormPlacementTime;
+        }
+        void setIP(const uint64_t &n){
+            senderIP = n;
+        }
+        uint64_t getIP(){
+            return senderIP;
+        }
+        void setSender(const string &s){
+            sender = s;
+        }
+        string getSender(){
+            return sender;
+        }
+        void setReceiver(const string &r){
+            receiver = r;
+        }
+        string getReceiver(){
+            return receiver;
+        }
+        void setAmount(const uint64_t &n){
+            amount = n;
+        }
+        uint64_t getAmount(){
+            return amount;
+        }
+        void setExecutionDate(const uint64_t &n){
+            executionDate = n;
+        }
+        uint64_t getExecutionDate(){
+            return executionDate;
+        }
+        bool isShared(){
+            return shared;
+        }
+        string getExecString(){
+            return stringFromExecDate;
+        }
+        void setTransactionID(const uint64_t &n){
+            transactionID = n;
+        }
+        uint64_t getTransactionID(){
+            return transactionID;
+        }
+};
+class User{
+    private:
+        uint64_t regTimestamp;
+        string id;
+        uint64_t pin;
+        uint64_t balance;
+        bool activeSession;
+        uint64_t transactionsSent;
+        uint64_t transactionsReceived;
+    public:
+        //constructor
+        User(const uint64_t &ts,const string &i, const uint64_t &p, const uint64_t &sb)
+        : regTimestamp(ts), id(i), pin(p), balance(sb), activeSession(false), transactionsSent(0), transactionsReceived(0){}
+
+        void setTimestamp(const uint64_t &ts){
+            regTimestamp = ts;
+        }
+        uint64_t getTimestamp(){
+            return regTimestamp;
+        }
+        void setID(const string &i){
+            id = i;
+        }
+        string getID(){
+            return id;
+        }
+        void addMoney(const uint64_t &n){
+            balance += n;
+        }
+        void removeMoney(const uint64_t &n){
+            balance -= n;
+        }
+        uint64_t getBalance(){
+            return balance;
+        }
+        void setPin(const uint64_t &p){
+            pin = p;
+        }
+        uint64_t getPin(){
+            return pin;
+        }
+        void makeActive(){
+            activeSession = true;
+        }
+        void deActive(){
+            activeSession = false;
+        }
+        bool getActive(){
+            return activeSession;
+        }
+        // void addTransaction(Transaction* t){
+        //     userTransactions.push_back(t);
+        // }
+        void increaseSent(){
+            transactionsSent++;
+        }
+        uint64_t numSent(){
+            return transactionsSent;
+        }
+        void increaseReceived(){
+            transactionsReceived++;
+        }
+        uint64_t numReceived(){
+            return transactionsSent;
+        }
+};
+
+class executionComparator{
+    public:
+        bool operator()(Transaction *a, Transaction *b){
+            if(a->getExecutionDate() != b->getExecutionDate()){
+                return a->getExecutionDate() > b->getExecutionDate();
+            }
+            else{
+                return a->getTransactionID() > b->getTransactionID();
+            }
+        }
+};
+
+class chronologicalComparator{
+    public:
+        bool operator()(Transaction *a, Transaction *b){
+            if(a->getPlacementTime() != b->getPlacementTime()){
+                return a->getPlacementTime() > b->getPlacementTime();
+            }
+            else{
+                return a->getTransactionID() > b->getTransactionID();
+            }
+        }
+};
 class bank{
     private:
-    class Transaction{
-            private:
-                uint64_t placementTime;
-                string stringFormPlacementTime;
-                uint64_t senderIP;
-                string sender;
-                string receiver;
-                uint64_t amount;
-                uint64_t executionDate;
-                string stringFromExecDate;
-                bool shared;
-                uint64_t transactionID;
-            public:
-            //constructor
-                Transaction(const uint64_t &pt, const string &sfpt, const uint64_t &si, const string &s, const string &r, const uint64_t &a, const uint64_t &ed, const bool &o, const string &sed)
-                : placementTime(pt), stringFormPlacementTime(sfpt), senderIP(si), sender(s), receiver(r), amount(a), executionDate(ed), stringFromExecDate(sed), shared(o), transactionID(0){}
-
-                void setPlacementTime(const uint64_t &i){
-                    placementTime = i;
-                }
-                uint64_t getPlacementTime(){
-                    return placementTime;
-                }
-                string getPlacementString(){
-                    return stringFormPlacementTime;
-                }
-                void setIP(const uint64_t &n){
-                    senderIP = n;
-                }
-                uint64_t getIP(){
-                    return senderIP;
-                }
-                void setSender(const string &s){
-                    sender = s;
-                }
-                string getSender(){
-                    return sender;
-                }
-                void setReceiver(const string &r){
-                    receiver = r;
-                }
-                string getReceiver(){
-                    return receiver;
-                }
-                void setAmount(const uint64_t &n){
-                    amount = n;
-                }
-                uint64_t getAmount(){
-                    return amount;
-                }
-                void setExecutionDate(const uint64_t &n){
-                    executionDate = n;
-                }
-                uint64_t getExecutionDate(){
-                    return executionDate;
-                }
-                bool isShared(){
-                    return shared;
-                }
-                string getExecString(){
-                    return stringFromExecDate;
-                }
-                void setTransactionID(const uint64_t &n){
-                    transactionID = n;
-                }
-                uint64_t getTransactionID(){
-                    return transactionID;
-                }
-        };
-        class User{
-            private:
-                uint64_t regTimestamp;
-                string id;
-                uint64_t pin;
-                uint64_t balance;
-                bool activeSession;
-                uint64_t transactionsSent;
-                uint64_t transactionsReceived;
-            public:
-                //constructor
-                User(const uint64_t &ts,const string &i, const uint64_t &p, const uint64_t &sb)
-                : regTimestamp(ts), id(i), pin(p), balance(sb), activeSession(false), transactionsSent(0), transactionsReceived(0){}
-
-                void setTimestamp(const uint64_t &ts){
-                    regTimestamp = ts;
-                }
-                uint64_t getTimestamp(){
-                    return regTimestamp;
-                }
-                void setID(const string &i){
-                    id = i;
-                }
-                string getID(){
-                    return id;
-                }
-                void addMoney(const uint64_t &n){
-                    balance += n;
-                }
-                void removeMoney(const uint64_t &n){
-                    balance -= n;
-                }
-                uint64_t getBalance(){
-                    return balance;
-                }
-                void setPin(const uint64_t &p){
-                    pin = p;
-                }
-                uint64_t getPin(){
-                    return pin;
-                }
-                void makeActive(){
-                    activeSession = true;
-                }
-                void deActive(){
-                    activeSession = false;
-                }
-                bool getActive(){
-                    return activeSession;
-                }
-                // void addTransaction(Transaction* t){
-                //     userTransactions.push_back(t);
-                // }
-                void increaseSent(){
-                    transactionsSent++;
-                }
-                uint64_t numSent(){
-                    return transactionsSent;
-                }
-                void increaseReceived(){
-                    transactionsReceived++;
-                }
-                uint64_t numReceived(){
-                    return transactionsSent;
-                }
-        };
-        
-
-        class executionComparator{
-            public:
-                bool operator()(Transaction *a, Transaction *b){
-                    if(a->getExecutionDate() != b->getExecutionDate()){
-                        return a->getExecutionDate() > b->getExecutionDate();
-                    }
-                    else{
-                        return a->getTransactionID() > b->getTransactionID();
-                    }
-                }
-        };
-        class chronologicalComparator{
-            public:
-                bool operator()(Transaction *a, Transaction *b){
-                    if(a->getPlacementTime() != b->getPlacementTime()){
-                        return a->getPlacementTime() > b->getPlacementTime();
-                    }
-                    else{
-                        return a->getTransactionID() > b->getTransactionID();
-                    }
-                }
-        };
-
-
         bool file = false;
         string filename;
         bool verbose = false;
