@@ -18,6 +18,7 @@ class bank{
     class Transaction{
             private:
                 uint64_t placementTime;
+                string stringFormPlacementTime;
                 uint64_t senderIP;
                 string sender;
                 string receiver;
@@ -28,14 +29,17 @@ class bank{
                 uint64_t transactionID;
             public:
             //constructor
-                Transaction(const uint64_t &pt,const uint64_t &si, const string &s, const string &r, const uint64_t &a, const uint64_t &ed, const bool &o, const string &sed)
-                : placementTime(pt), senderIP(si), sender(s), receiver(r), amount(a), executionDate(ed), stringFromExecDate(sed), shared(o), transactionID(0){}
+                Transaction(const uint64_t &pt, const string &sfpt, const uint64_t &si, const string &s, const string &r, const uint64_t &a, const uint64_t &ed, const bool &o, const string &sed)
+                : placementTime(pt), stringFormPlacementTime(sfpt), senderIP(si), sender(s), receiver(r), amount(a), executionDate(ed), stringFromExecDate(sed), shared(o), transactionID(0){}
 
                 void setPlacementTime(const uint64_t &i){
                     placementTime = i;
                 }
                 uint64_t getPlacementTime(){
                     return placementTime;
+                }
+                string getPlacementString(){
+                    return stringFormPlacementTime;
                 }
                 void setIP(const uint64_t &n){
                     senderIP = n;
@@ -87,11 +91,12 @@ class bank{
                 uint64_t pin;
                 uint64_t balance;
                 bool activeSession;
-                vector<Transaction*> userTransactions;
+                uint64_t transactionsSent;
+                uint64_t transactionsReceived;
             public:
                 //constructor
                 User(const uint64_t &ts,const string &i, const uint64_t &p, const uint64_t &sb)
-                : regTimestamp(ts), id(i), pin(p), balance(sb), activeSession(false){}
+                : regTimestamp(ts), id(i), pin(p), balance(sb), activeSession(false), transactionsSent(0), transactionsReceived(0){}
 
                 void setTimestamp(const uint64_t &ts){
                     regTimestamp = ts;
@@ -129,8 +134,20 @@ class bank{
                 bool getActive(){
                     return activeSession;
                 }
-                void addTransaction(Transaction* t){
-                    userTransactions.push_back(t);
+                // void addTransaction(Transaction* t){
+                //     userTransactions.push_back(t);
+                // }
+                void increaseSent(){
+                    transactionsSent++;
+                }
+                uint64_t numSent(){
+                    return transactionsSent;
+                }
+                void increaseReceived(){
+                    transactionsReceived++;
+                }
+                uint64_t numReceived(){
+                    return transactionsSent;
                 }
         };
         
@@ -274,7 +291,7 @@ class bank{
 
         string removeColons(const string &s){
             string toReturn;
-            for(int i = 0; i < s.length(); i++){
+            for(uint64_t i = 0; i < s.length(); i++){
                 if(s[i] != ':'){
                     toReturn += s[i];
                 }
@@ -369,7 +386,7 @@ class bank{
             else if(oORs == 's'){
                 shared = true;
             }
-            Transaction currTransaction(timestamp, ip, sender, recipient, amount, execDate, shared, stringFormExecDate);
+            Transaction currTransaction(timestamp, stringFormtimestamp ,ip, sender, recipient, amount, execDate, shared, stringFormExecDate);
             bool isGood = validateTransaction(currTransaction);
             if(isGood){
                 isGood = checkFraudulent(currTransaction);
@@ -437,6 +454,8 @@ class bank{
                 if(hasSufficientFunds(t->getSender(), totalAmt)){
                     existingUsers[t->getSender()]->removeMoney(totalAmt);
                     existingUsers[t->getReceiver()]->addMoney(t->getAmount());
+                    existingUsers[t->getSender()]->increaseSent();
+                    existingUsers[t->getReceiver()]->increaseReceived();
                     if(verbose){
                         cout << "Transaction executed at " << removeColons(t->getExecString()) << 
                         ": $" << t->getAmount() << " from " << t->getSender() << " to " 
@@ -507,7 +526,7 @@ class bank{
             uint64_t x = convertTimestamp(stringForX);
             uint64_t y = convertTimestamp(stringForY);
 
-            uint64_t numTransactions;
+            uint64_t numTransactions = 0;
             
             for(auto &t: chronologicalTransactions){
                 if(t->getExecutionDate() >= x && t->getExecutionDate() < y){
@@ -528,17 +547,250 @@ class bank{
             << stringForX << " to " << stringForY << ".\n";
         }
 
-        void runBankRevenue(){
+        string numTimePassedInInterval(const string& s1, const string& s2){
+            string noColonX = removeColons(s1);
+            string noColonY = removeColons(s2);
 
+            int x = stoi(noColonX);
+            int y = stoi(noColonY);
+
+            int difference = (y - x);
+
+            string diffString = to_string(difference);
+            string output;
+            int unitCounter = 1;
+            string currentDuo = "";
+            for(uint64_t i = diffString.length() - 1; i >= 0; i--){
+                currentDuo = currentDuo + diffString[i];
+                i--;
+                currentDuo = currentDuo + diffString[i];
+                if(currentDuo != "00"){
+                    if(unitCounter == 1){
+                        currentDuo.append(" seconds");
+                        currentDuo.append(output);
+                        output = currentDuo;
+                    }else if(unitCounter == 2){
+                        currentDuo.append(" minutes ");
+                        currentDuo.append(output);
+                        output = currentDuo;
+                    } else if(unitCounter == 3){
+                        currentDuo.append(" hours ");
+                        currentDuo.append(output);
+                        output = currentDuo;
+                    }else if(unitCounter == 4){
+                        currentDuo.append(" days ");
+                        currentDuo.append(output);
+                        output = currentDuo;
+                    }else if(unitCounter == 5){
+                        currentDuo.append(" months ");
+                        currentDuo.append(output);
+                        output = currentDuo;
+                    }else if(unitCounter == 6){
+                        currentDuo.append(" years ");
+                        currentDuo.append(output);
+                        output = currentDuo;
+                    }
+                    unitCounter++;
+                }
+            }
+            return output;  
+        }
+
+        string convertToHourMinSec(const string &placementTime){
+            string noColon = removeColons(placementTime);
+            string output;
+            int unitCounter = 0;
+
+            string currentDuo;
+            for(uint64_t i = noColon.length() - 1; i >= noColon.length() - 7; i--){\
+                unitCounter ++;
+                currentDuo = currentDuo + noColon[i];
+                i--;
+                if( (unitCounter < 6) || (i == noColon.length() - 7 && noColon[i] != 0)){
+                    currentDuo = currentDuo + noColon[i];
+                    currentDuo.append(output);
+                    output = currentDuo;
+                }
+            }
+            return output; 
+        }
+
+        void runBankRevenue(){
+            string stringForX;
+            string stringForY;
+            cin >> stringForX >> stringForY;
+            
+            uint64_t x = convertTimestamp(stringForX);
+            uint64_t y = convertTimestamp(stringForY);
+
+            uint64_t amountGenerated = 0;
+            for(auto &t: chronologicalTransactions){
+                if(t->getExecutionDate() >= x && t->getExecutionDate() < y){
+                    uint64_t fee = calcFee(t->getAmount());
+                    if(hasBeenLoyal(t->getSender())){
+                        fee = (fee * 3) / 4;
+                    }
+                    amountGenerated += fee;
+                }
+            }
+            cout << "281bank has collected " << amountGenerated << " dollars in fees over "
+            << numTimePassedInInterval(stringForX, stringForY) << ".\n";
         }
 
         void runHistory(){
+            string userID;
+            cin >> userID;
+            if(existingUsers.find(userID) != existingUsers.end()){
+                cout << "Customer " << userID << " account summary:\n";
+                cout << "Balance: " << existingUsers[userID]->getBalance() <<"\n";
+                
+                string incomingInfo;
+                string outgoingInfo;
+                deque<Transaction*> incoming;
+                deque<Transaction*> outgoing;
+                for(auto &t:transactionMasterList){
+                    if(t->getReceiver() == userID){
+                        incoming.push_back(t);
+                    }
+                    else if(t->getSender() == userID){
+                        outgoing.push_back(t);
+                    }
+                }
 
+                cout << "Incoming " << existingUsers[userID]->numReceived() << ":\n";
+                uint64_t counter = 0;
+                while(!incoming.empty() && counter <= 10){
+                    if(incoming.back()->getAmount() != 1){
+                        cout << incoming.back()->getTransactionID() << ": " << incoming.back()->getSender() << " sent " 
+                        << incoming.back()->getAmount() << " dollars to " << incoming.back()->getReceiver() << " at "
+                        << convertToHourMinSec(incoming.back()->getExecString()) << ".\n";
+                    }
+                    else{
+                        cout << incoming.back()->getTransactionID() << ": " << incoming.back()->getSender() << " sent " 
+                        << incoming.back()->getAmount() << " dollar to " << incoming.back()->getReceiver() << " at "
+                        << convertToHourMinSec(incoming.back()->getExecString()) << ".\n";
+                    }
+                    incoming.pop_back();
+                    counter++;
+                }
+
+                counter = 0;
+                cout << "Outgoing " << existingUsers[userID]->numSent() << ":\n";
+                while(!outgoing.empty() && counter <= 10){
+                    if(outgoing.back()->getAmount() != 1){
+                        cout << outgoing.back()->getTransactionID() << ": " << outgoing.back()->getSender() << " sent " 
+                        << outgoing.back()->getAmount() << " dollars to " << outgoing.back()->getReceiver() << " at "
+                        << convertToHourMinSec(outgoing.back()->getExecString()) << ".\n";
+                    }
+                    else{
+                        cout << outgoing.back()->getTransactionID() << ": " << outgoing.back()->getSender() << " sent " 
+                        << outgoing.back()->getAmount() << " dollar to " << outgoing.back()->getReceiver() << " at "
+                        << convertToHourMinSec(outgoing.back()->getExecString()) << ".\n";
+                    }
+                    outgoing.pop_back();
+                    counter++;
+                }
+            }
+            else{
+                cout << "User " << userID << " does not exist.\n";
+            }
+            
+        }
+
+        string noZeros(const string &timestamp){
+            string noColon = removeColons(timestamp);
+
+            return to_string((stoi(noColon)));
+        }
+
+        pair<string, uint64_t> lowerBound(string &timestamp){
+            timestamp = removeColons(timestamp); 
+            string lowerString;
+
+            string stringOutput;
+            int unitCounter = 0;
+
+            for(uint64_t i = timestamp.length() - 1; i >= 0; i--){\
+                unitCounter ++;
+                string currentDuo;
+                if(unitCounter <= 6){
+                    currentDuo = ":00";
+                    i--;
+                    currentDuo.append(stringOutput);
+                    stringOutput = currentDuo;
+                }
+                else{
+                    if(unitCounter <= 10){
+                        currentDuo = ":" + currentDuo + timestamp[i];
+                        i--;
+                        currentDuo = currentDuo + timestamp[i];
+                        currentDuo.append(stringOutput);
+                        stringOutput = currentDuo;
+                    }
+                    else{
+                        currentDuo = currentDuo + timestamp[i];
+                        i--;
+                        currentDuo = currentDuo + timestamp[i];
+                        currentDuo.append(stringOutput);
+                        stringOutput = currentDuo;
+                    }
+                }
+            }
+            return make_pair(removeColons(stringOutput), convertTimestamp(stringOutput)); 
+        }
+        
+        pair<string, uint64_t> upperBound(const string &timestamp){
+            string stringOutput = timestamp;
+
+            string subsetDays = stringOutput.substr(6, 2);
+            int intRep = stoi(subsetDays);
+            intRep++;
+            subsetDays = to_string(intRep);
+            stringOutput[6] = subsetDays[0];
+            stringOutput[7] = subsetDays[1];
+            return make_pair(removeColons(stringOutput), convertTimestamp(stringOutput)); 
         }
 
         void runSummarizeDay(){
+            string timestamp;
+            cin >> timestamp;
 
+            pair<string, uint64_t> lower = lowerBound(timestamp);
+            pair<string, uint64_t> upper = upperBound(timestamp);
+
+
+            uint64_t amountGenerated = 0;
+            for(auto &t: chronologicalTransactions){
+                if(t->getExecutionDate() >= lower.second && t->getExecutionDate() < upper.second){
+                    uint64_t fee = calcFee(t->getAmount());
+                    if(hasBeenLoyal(t->getSender())){
+                        fee = (fee * 3) / 4;
+                    }
+                    amountGenerated += fee;
+                }
+            }
+
+            cout << "Summary of [" << lower.first << ", " << upper.first << "):\n";
+            int counter = 0;
+            for(auto &t: transactionMasterList){
+                if(t->getExecutionDate() >= lower.second && t->getExecutionDate() < upper.second){
+                    cout << t->getExecutionDate() << ": " << t->getSender() << " sent "
+                    << t->getAmount() << " dollars to " << t->getReceiver() << " at " << 
+                    noZeros(t->getPlacementString()) << ".\n";
+                    counter++;
+                }
+            }
+            if(counter == 1){
+                cout << "There were a total of " << counter << "transaction," 
+                << " 281Bank has collected " << amountGenerated << " dollars in fees.\n";
+            }
+            else{
+                cout << "There were a total of " << counter << "transactions," 
+                << " 281Bank has collected " << amountGenerated << " dollars in fees.\n";
+            }
+            
         }
+
         void readQueries(){
             string curr;
             while(cin >> curr){
@@ -562,9 +814,6 @@ class bank{
                 callCommand(curr);
                 cin >> curr;
             }
-            executeTransactions();
-
-            readQueries();
         }
 
         void readRegistrationFile(){
@@ -586,6 +835,12 @@ class bank{
             }
         }
     public:
+
+        void read(){
+            readCommands();
+            executeTransactions();
+            readQueries();
+        }
         
         void getMode(int argc, char * argv[]) {
             opterr = false; // Let us handle all error output for command line options

@@ -6,16 +6,16 @@
             "type": "lldb",
             "request": "launch",
             "preLaunchTask": "build debug executable",
-            "program": "${workspaceFolder}/zombbb_debug",
+            "program": "${workspaceFolder}/bank_debug",
             "stdio": [
-                "Sample-large.txt", // redirect stdin
+                "spec-commands.txt", // redirect stdin
                 "output.txt", // redirect stdout
                 null // redirect stderr
             ],
-            "args": ["-mvs",
-            "100",
+            "args": ["-vf",
+            "spec-reg.txt",
             "<",
-            "Sample-large.txt",
+            "spec-commands.txt",
             ">",
             "output.txt"],
             "stopOnEntry": false,
