@@ -93,7 +93,7 @@ class User{
         uint64_t transactionsReceived;
     public:
         //constructor
-        User(const uint64_t &ts,const string &i, const uint64_t &p, const uint64_t &sb)
+        User(const uint64_t &ts, const string &i, const uint64_t &p, const uint64_t &sb)
         : regTimestamp(ts), id(i), pin(p), balance(sb), activeSession(false), transactionsSent(0), transactionsReceived(0){}
 
         void setTimestamp(const uint64_t &ts){
@@ -149,38 +149,40 @@ class User{
         }
 };
 
-class executionComparator{
-    public:
-        bool operator()(Transaction *a, Transaction *b){
-            if(a->getExecutionDate() != b->getExecutionDate()){
-                return a->getExecutionDate() > b->getExecutionDate();
-            }
-            else{
-                return a->getTransactionID() > b->getTransactionID();
-            }
-        }
-};
-
-class chronologicalComparator{
-    public:
-        bool operator()(Transaction *a, Transaction *b){
-            if(a->getPlacementTime() != b->getPlacementTime()){
-                return a->getPlacementTime() > b->getPlacementTime();
-            }
-            else{
-                return a->getTransactionID() > b->getTransactionID();
-            }
-        }
-};
 class bank{
     private:
+        
+        
+        class executionComparator{
+            public:
+                bool operator()(Transaction *a, Transaction *b){
+                    if(a->getExecutionDate() != b->getExecutionDate()){
+                        return a->getExecutionDate() > b->getExecutionDate();
+                    }
+                    else{
+                        return a->getTransactionID() > b->getTransactionID();
+                    }
+                }
+        };
+
+        class chronologicalComparator{
+            public:
+                bool operator()(Transaction *a, Transaction *b){
+                    if(a->getPlacementTime() != b->getPlacementTime()){
+                        return a->getPlacementTime() > b->getPlacementTime();
+                    }
+                    else{
+                        return a->getTransactionID() > b->getTransactionID();
+                    }
+                }
+        };
         bool file = false;
         string filename;
         bool verbose = false;
         unordered_map<string, User*> existingUsers;
         unordered_map<string, unordered_set<uint64_t>> userIPs;
         priority_queue<Transaction*, vector<Transaction*>, executionComparator> pendingTransactions;
-        set<Transaction*, chronologicalComparator> chronologicalTransactions;
+        priority_queue<Transaction*,  vector<Transaction*>, chronologicalComparator> chronologicalTransactions;
         deque<Transaction*> transactionMasterList;
         uint64_t transactionIDCounter = 0;
 
@@ -213,8 +215,8 @@ class bank{
         }
 
 
-        bool checkFraudulent(Transaction &t){
-            if(userIPs[t.getSender()].find(t.getIP()) == userIPs[t.getSender()].end()){
+        bool checkFraudulent(Transaction *t){
+            if(userIPs[t->getSender()].find(t->getIP()) == userIPs[t->getSender()].end()){
                 if(verbose){
                     cout << "Fraudulent transaction detected, aborting request.\n";
                 }
@@ -222,12 +224,12 @@ class bank{
             }
             return true;
         }
-        bool validateTransaction(Transaction &t){
+        bool validateTransaction(Transaction *t){
             //wrote witih continueCheck but could definitely just take out and use
             //return falses instead
             bool continueCheck = true;
-            const uint64_t execDate = t.getExecutionDate();
-            const uint64_t placementT = t.getPlacementTime();
+            const uint64_t execDate = t->getExecutionDate();
+            const uint64_t placementT = t->getPlacementTime();
             //execution date <= 3 days
             if((execDate - placementT) > convertTimestamp("00:00:03:00:00:00")){
                 continueCheck = false;
@@ -236,34 +238,34 @@ class bank{
                 }
             }
             //sender exists
-            if(continueCheck && (existingUsers.find(t.getSender()) == existingUsers.end())){
+            if(continueCheck && (existingUsers.find(t->getSender()) == existingUsers.end())){
                 continueCheck = false;
                 if(verbose){
-                    cout << "Sender " << t.getSender() << " does not exist.\n";
+                    cout << "Sender " << t->getSender() << " does not exist.\n";
                 }
             }
             //recipient exists
-            if(continueCheck && existingUsers.find(t.getReceiver()) == existingUsers.end()){
+            if(continueCheck && existingUsers.find(t->getReceiver()) == existingUsers.end()){
                 continueCheck = false;
                 if(verbose){
-                    cout << "Recipient " << t.getReceiver() << " does not exist.\n";
+                    cout << "Recipient " << t->getReceiver() << " does not exist.\n";
                 }
             }
             //execution date is later than the sender's and recipient's
             //registration date (both must have been created at time of transaction)
             if(continueCheck 
-            && (t.getExecutionDate() < existingUsers[t.getSender()]->getTimestamp()
-            || t.getExecutionDate() < existingUsers[t.getReceiver()]->getTimestamp())){
+            && (t->getExecutionDate() < existingUsers[t->getSender()]->getTimestamp()
+            || t->getExecutionDate() < existingUsers[t->getReceiver()]->getTimestamp())){
                 continueCheck = false;
                 if(verbose){
                     cout << "At the time of execution, sender and/or recipient have not registered.\n";
                 }
             }
             //sender has an active user session
-            if(continueCheck && (existingUsers[t.getSender()]->getActive() == false)){
+            if(continueCheck && (existingUsers[t->getSender()]->getActive() == false)){
                 continueCheck = false;
                 if(verbose){
-                    cout << "Sender " << t.getSender() << " is not logged in.\n";
+                    cout << "Sender " << t->getSender() << " is not logged in.\n";
                 }
             }
             if(continueCheck){
@@ -284,9 +286,60 @@ class bank{
             getline(cin, junkline);
         }
         uint64_t convertIP(const string &s){
-            return (uint64_t)(stoi(s));
+            string copy = s;
+            copy.erase(remove(copy.begin(), copy.end(), '.'), copy.end());
+            return (uint64_t)(stod(copy));
         }
 
+
+        void readQueries(){
+            string curr;
+            while(cin >> curr){
+                if(curr == "l"){
+                    runList();
+                }else if(curr == "r"){
+                    runBankRevenue();
+                }else if(curr == "h"){
+                    runHistory();
+                }else if(curr == "s"){
+                    runSummarizeDay();
+                }
+            }
+        }
+
+        void readCommands(){
+            fstream fin(filename);
+            string fullLine;
+            uint64_t pos = 0;
+            while(fin >> fullLine){
+                //read line one by one
+                string ts;
+
+                pos = fullLine.find("|");
+                ts = fullLine.substr(0, pos);
+                fullLine.erase(0, pos + 1);
+                string i;
+                pos = fullLine.find("|");
+                i = fullLine.substr(0, pos);
+                fullLine.erase(0, pos + 1);
+                string p;
+                pos = fullLine.find("|");
+                p = fullLine.substr(0, pos);
+                fullLine.erase(0, pos + 1);
+                string sb = fullLine;
+                
+                uint64_t pin = (uint64_t)stoi(p);
+                uint64_t startBalance = (uint64_t)stoi(sb);
+                User* newU = new User(convertTimestamp(ts), i, pin, startBalance);
+                existingUsers[i] = newU;
+            }
+            string curr;
+            cin >> curr;
+            while(curr != "$$$"){
+                callCommand(curr);
+                cin >> curr;
+            }
+        }
         string removeColons(const string &s){
             string toReturn;
             for(uint64_t i = 0; i < s.length(); i++){
@@ -304,7 +357,7 @@ class bank{
             uint64_t ip;
             cin >> userID >> pin >> longFormIP;
             ip = convertIP(longFormIP);
-            if(existingUsers.find(userID) != existingUsers.end()){
+            if(existingUsers.find(userID) != existingUsers.end() && existingUsers[userID] != nullptr){
                 if(existingUsers[userID]->getPin() == pin){
                     userIPs[userID].insert(ip);
                     existingUsers[userID]->makeActive();
@@ -384,22 +437,22 @@ class bank{
             else if(oORs == 's'){
                 shared = true;
             }
-            Transaction currTransaction(timestamp, stringFormtimestamp ,ip, sender, recipient, amount, execDate, shared, stringFormExecDate);
+            Transaction* currTransaction = new Transaction(timestamp, stringFormtimestamp ,ip, sender, recipient, amount, execDate, shared, stringFormExecDate);
             bool isGood = validateTransaction(currTransaction);
             if(isGood){
                 isGood = checkFraudulent(currTransaction);
             }
             //now execute transactions <= the transaction
-            executeLessThanEqual(&currTransaction);
+            executeLessThanEqual(currTransaction);
             if(isGood){
-                currTransaction.setTransactionID(generateNewID());
+                currTransaction->setTransactionID(generateNewID());
                 if(verbose){
                     cout << "Transaction placed at " << removeColons(stringFormtimestamp) << ": $" << amount 
                     << " from " << sender << " to " << recipient << " at " << removeColons(stringFormExecDate) << ".\n";
                 }
-                transactionMasterList.push_back(&currTransaction);
-                pendingTransactions.push(&currTransaction);
-                chronologicalTransactions.insert(&currTransaction);
+                transactionMasterList.push_back(currTransaction);
+                pendingTransactions.push(currTransaction);
+                chronologicalTransactions.push(currTransaction);
             }
         }
 
@@ -503,7 +556,7 @@ class bank{
         }
 
         void executeLessThanEqual(Transaction* t){
-            while(pendingTransactions.top()->getExecutionDate() <= t->getPlacementTime()){
+            while(!pendingTransactions.empty() && pendingTransactions.top()->getExecutionDate() <= t->getPlacementTime()){
                 execute(pendingTransactions.top());
                 pendingTransactions.pop();
             }
@@ -526,72 +579,104 @@ class bank{
 
             uint64_t numTransactions = 0;
             
-            for(auto &t: chronologicalTransactions){
-                if(t->getExecutionDate() >= x && t->getExecutionDate() < y){
-                    if(t->getAmount() != 1){
-                        cout << "  " << t->getTransactionID() << ": " << t->getSender() 
-                        << " sent " << t->getAmount() << " dollars to " << t->getReceiver()
-                        << " at " << removeColons(t->getExecString()) << ".\n";
+            while( !chronologicalTransactions.empty()){
+                if(chronologicalTransactions.top()->getExecutionDate() >= x && chronologicalTransactions.top()->getExecutionDate() < y){
+                    if(chronologicalTransactions.top()->getAmount() != 1){
+                        cout << "  " << chronologicalTransactions.top()->getTransactionID() << ": " << chronologicalTransactions.top()->getSender() 
+                        << " sent " << chronologicalTransactions.top()->getAmount() << " dollars to " << chronologicalTransactions.top()->getReceiver()
+                        << " at " << removeColons(chronologicalTransactions.top()->getExecString()) << ".\n";
                     }
                     else{
-                        cout << t->getTransactionID() << ": " << t->getSender() 
-                        << " sent " << t->getAmount() << " dollar to " << t->getReceiver()
-                        << " at " << removeColons(t->getExecString()) << ".\n";
+                        cout << chronologicalTransactions.top()->getTransactionID() << ": " << chronologicalTransactions.top()->getSender() 
+                        << " sent " << chronologicalTransactions.top()->getAmount() << " dollar to " << chronologicalTransactions.top()->getReceiver()
+                        << " at " << removeColons(chronologicalTransactions.top()->getExecString()) << ".\n";
                     }
                     numTransactions++;
                 }
+
             }
             cout << "There were " << numTransactions << " transactions that were placed between time "
             << stringForX << " to " << stringForY << ".\n";
         }
 
+        uint64_t numSeconds(const string &ts){
+            istringstream reader(ts);
+            tm t = {};
+            uint64_t numSeconds;
+
+            reader >> get_time(&t, "%y:%m:%d:%H:%M:%S");
+
+            if(!reader.fail()){
+                numSeconds = mktime(&t);
+            }
+            return numSeconds;
+        }
+
         string numTimePassedInInterval(const string& s1, const string& s2){
+            stringstream output;
             string noColonX = removeColons(s1);
             string noColonY = removeColons(s2);
 
-            int x = stoi(noColonX);
-            int y = stoi(noColonY);
+            uint64_t x = numSeconds(noColonX);
+            uint64_t y = numSeconds(noColonY);
 
-            int difference = (y - x);
+            uint64_t difference = (y - x);
+            const char* units[] = {"years","months","days","hours","minutes","seconds"};
+            const uint64_t unitValues[] = {31536000, 2592000, 86400, 3600, 60, 1};
+            bool shouldPrint = false;
+            for(uint64_t i = 0; i < sizeof(unitValues) / sizeof(unitValues[0]);i++ ){
+                uint64_t currentNums = difference / unitValues[i];
+                difference = difference % unitValues[i];
 
-            string diffString = to_string(difference);
-            string output;
-            int unitCounter = 1;
-            string currentDuo = "";
-            for(uint64_t i = diffString.length() - 1; i >= 0; i--){
-                currentDuo = currentDuo + diffString[i];
-                i--;
-                currentDuo = currentDuo + diffString[i];
-                if(currentDuo != "00"){
-                    if(unitCounter == 1){
-                        currentDuo.append(" seconds");
-                        currentDuo.append(output);
-                        output = currentDuo;
-                    }else if(unitCounter == 2){
-                        currentDuo.append(" minutes ");
-                        currentDuo.append(output);
-                        output = currentDuo;
-                    } else if(unitCounter == 3){
-                        currentDuo.append(" hours ");
-                        currentDuo.append(output);
-                        output = currentDuo;
-                    }else if(unitCounter == 4){
-                        currentDuo.append(" days ");
-                        currentDuo.append(output);
-                        output = currentDuo;
-                    }else if(unitCounter == 5){
-                        currentDuo.append(" months ");
-                        currentDuo.append(output);
-                        output = currentDuo;
-                    }else if(unitCounter == 6){
-                        currentDuo.append(" years ");
-                        currentDuo.append(output);
-                        output = currentDuo;
+                if(currentNums > 0 || shouldPrint){
+                    if(shouldPrint){
+                        output << " ";
                     }
-                    unitCounter++;
+                    output << currentNums << " " << units[i];
+                    shouldPrint = true;
                 }
             }
-            return output;  
+            return output.str();
+
+
+            // string diffString = to_string(difference);
+            // string output;
+            // int unitCounter = 1;
+            // string currentDuo = "";
+            // for(uint64_t i = diffString.length() - 1; i >= 0; i--){
+            //     currentDuo = currentDuo + diffString[i];
+            //     i--;
+            //     currentDuo = currentDuo + diffString[i];
+            //     if(currentDuo != "00"){
+            //         if(unitCounter == 1){
+            //             currentDuo.append(" seconds");
+            //             currentDuo.append(output);
+            //             output = currentDuo;
+            //         }else if(unitCounter == 2){
+            //             currentDuo.append(" minutes ");
+            //             currentDuo.append(output);
+            //             output = currentDuo;
+            //         } else if(unitCounter == 3){
+            //             currentDuo.append(" hours ");
+            //             currentDuo.append(output);
+            //             output = currentDuo;
+            //         }else if(unitCounter == 4){
+            //             currentDuo.append(" days ");
+            //             currentDuo.append(output);
+            //             output = currentDuo;
+            //         }else if(unitCounter == 5){
+            //             currentDuo.append(" months ");
+            //             currentDuo.append(output);
+            //             output = currentDuo;
+            //         }else if(unitCounter == 6){
+            //             currentDuo.append(" years ");
+            //             currentDuo.append(output);
+            //             output = currentDuo;
+            //         }
+            //         unitCounter++;
+            //     }
+            // }
+            // return output;  
         }
 
         string convertToHourMinSec(const string &placementTime){
@@ -622,7 +707,7 @@ class bank{
             uint64_t y = convertTimestamp(stringForY);
 
             uint64_t amountGenerated = 0;
-            for(auto &t: chronologicalTransactions){
+            for(auto &t: transactionMasterList){
                 if(t->getExecutionDate() >= x && t->getExecutionDate() < y){
                     uint64_t fee = calcFee(t->getAmount());
                     if(hasBeenLoyal(t->getSender())){
@@ -758,20 +843,16 @@ class bank{
 
 
             uint64_t amountGenerated = 0;
-            for(auto &t: chronologicalTransactions){
+
+            cout << "Summary of [" << lower.first << ", " << upper.first << "):\n";
+            int counter = 0;
+            for(auto &t: transactionMasterList){
                 if(t->getExecutionDate() >= lower.second && t->getExecutionDate() < upper.second){
                     uint64_t fee = calcFee(t->getAmount());
                     if(hasBeenLoyal(t->getSender())){
                         fee = (fee * 3) / 4;
                     }
                     amountGenerated += fee;
-                }
-            }
-
-            cout << "Summary of [" << lower.first << ", " << upper.first << "):\n";
-            int counter = 0;
-            for(auto &t: transactionMasterList){
-                if(t->getExecutionDate() >= lower.second && t->getExecutionDate() < upper.second){
                     cout << t->getExecutionDate() << ": " << t->getSender() << " sent "
                     << t->getAmount() << " dollars to " << t->getReceiver() << " at " << 
                     noZeros(t->getPlacementString()) << ".\n";
@@ -787,50 +868,6 @@ class bank{
                 << " 281Bank has collected " << amountGenerated << " dollars in fees.\n";
             }
             
-        }
-
-        void readQueries(){
-            string curr;
-            while(cin >> curr){
-                if(curr == "l"){
-                    runList();
-                }else if(curr == "r"){
-                    runBankRevenue();
-                }else if(curr == "h"){
-                    runHistory();
-                }else if(curr == "s"){
-                    runSummarizeDay();
-                }
-            }
-        }
-
-        void readCommands(){
-            readRegistrationFile();
-            string curr;
-            cin >> curr;
-            while(curr != "$$$"){
-                callCommand(curr);
-                cin >> curr;
-            }
-        }
-
-        void readRegistrationFile(){
-            fstream fin(filename);
-            while(fin.good()){
-                //read line one by one
-                string ts;
-                getline(fin, ts, '|');
-                string i;
-                getline(fin, i, '|');
-                string p;
-                getline(fin, p, '|');
-                string sb;
-                getline(fin, sb);
-                uint64_t pin = (uint64_t)stoi(p);
-                uint64_t startBalance = (uint64_t)stoi(sb);
-                User newU(convertTimestamp(ts), i, pin, startBalance);
-                existingUsers[i] = &newU;
-            }
         }
     public:
 

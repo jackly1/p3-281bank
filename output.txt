@@ -1,0 +1,9 @@
+Failed to log in mertg.
+At the time of execution, sender and/or recipient have not registered.
+User mertg logged in.
+At the time of execution, sender and/or recipient have not registered.
+Select a time less than three days in the future.
+Select a time less than three days in the future.
+Select a time less than three days in the future.
+User mertg logged out.
+There were 0 transactions that were placed between time 08:03:01:40:22:36 to 09:03:01:40:22:34.
