@@ -450,8 +450,8 @@ class bank{
             if(isGood){
                 currTransaction->setTransactionID(generateNewID());
                 if(verbose){
-                    cout << "Transaction placed at " << removeColons(stringFormtimestamp) << ": $" << amount 
-                    << " from " << sender << " to " << recipient << " at " << removeColons(stringFormExecDate) << ".\n";
+                    cout << "Transaction placed at " << noZeros(stringFormtimestamp) << ": $" << amount 
+                    << " from " << sender << " to " << recipient << " at " << noZeros(stringFormExecDate) << ".\n";
                 }
                 transactionMasterList.push_back(currTransaction);
                 pendingTransactions.push(currTransaction);
@@ -511,7 +511,7 @@ class bank{
                     existingUsers[t->getSender()]->increaseSent();
                     existingUsers[t->getReceiver()]->increaseReceived();
                     if(verbose){
-                        cout << "Transaction executed at " << removeColons(t->getExecString()) << 
+                        cout << "Transaction executed at " << noZeros(t->getExecString()) << 
                         ": $" << t->getAmount() << " from " << t->getSender() << " to " 
                         << t->getReceiver() << ".\n";
                     }
@@ -547,7 +547,7 @@ class bank{
                     existingUsers[t->getSender()]->increaseSent();
                     existingUsers[t->getReceiver()]->increaseReceived();
                     if(verbose){
-                        cout << "Transaction executed at " << removeColons(t->getExecString()) << 
+                        cout << "Transaction executed at " << noZeros(t->getExecString()) << 
                         ": $" << t->getAmount() << " from " << t->getSender() << " to " 
                         << t->getReceiver() << ".\n";
                     }
@@ -589,19 +589,19 @@ class bank{
                     if(chronologicalTransactions.top()->getAmount() != 1){
                         cout << chronologicalTransactions.top()->getTransactionID() << ": " << chronologicalTransactions.top()->getSender() 
                         << " sent " << chronologicalTransactions.top()->getAmount() << " dollars to " << chronologicalTransactions.top()->getReceiver()
-                        << " at " << removeColons(chronologicalTransactions.top()->getExecString()) << ".\n";
+                        << " at " << noZeros(chronologicalTransactions.top()->getExecString()) << ".\n";
                     }
                     else{
                         cout << chronologicalTransactions.top()->getTransactionID() << ": " << chronologicalTransactions.top()->getSender() 
                         << " sent " << chronologicalTransactions.top()->getAmount() << " dollar to " << chronologicalTransactions.top()->getReceiver()
-                        << " at " << removeColons(chronologicalTransactions.top()->getExecString()) << ".\n";
+                        << " at " << noZeros(chronologicalTransactions.top()->getExecString()) << ".\n";
                     }
                     numTransactions++;
                 }
                 chronologicalTransactions.pop();
             }
             cout << "There were " << numTransactions << " transactions that were placed between time "
-            << stringForX << " to " << stringForY << ".\n";
+            << noZeros(stringForX) << " to " << noZeros(stringForY) << ".\n";
         }
 
 
@@ -637,25 +637,6 @@ class bank{
             output << ".";
             string toReturn = output.str();
             return toReturn; 
-        }
-
-        string convertToHourMinSec(const string &placementTime){
-            string noColon = removeColons(placementTime);
-            string output;
-            int unitCounter = 0;
-
-            string currentDuo;
-            for(uint64_t i = noColon.length() - 1; i >= noColon.length() - 7; i--){\
-                unitCounter ++;
-                currentDuo = currentDuo + noColon[i];
-                i--;
-                if( (unitCounter < 6) || (i == noColon.length() - 7 && noColon[i] != 0)){
-                    currentDuo = currentDuo + noColon[i];
-                    currentDuo.append(output);
-                    output = currentDuo;
-                }
-            }
-            return output; 
         }
 
         void runBankRevenue(){
@@ -706,12 +687,12 @@ class bank{
                     if(incoming.front()->getAmount() != 1){
                         cout << incoming.front()->getTransactionID() << ": " << incoming.front()->getSender() << " sent " 
                         << incoming.front()->getAmount() << " dollars to " << incoming.front()->getReceiver() << " at "
-                        << convertToHourMinSec(incoming.front()->getExecString()) << ".\n";
+                        << noZeros(incoming.front()->getExecString()) << ".\n";
                     }
                     else{
                         cout << incoming.front()->getTransactionID() << ": " << incoming.front()->getSender() << " sent " 
                         << incoming.front()->getAmount() << " dollar to " << incoming.front()->getReceiver() << " at "
-                        << convertToHourMinSec(incoming.front()->getExecString()) << ".\n";
+                        << noZeros(incoming.front()->getExecString()) << ".\n";
                     }
                     incoming.pop_front();
                     counter++;
@@ -723,12 +704,12 @@ class bank{
                     if(outgoing.front()->getAmount() != 1){
                         cout << outgoing.front()->getTransactionID() << ": " << outgoing.front()->getSender() << " sent " 
                         << outgoing.front()->getAmount() << " dollars to " << outgoing.front()->getReceiver() << " at "
-                        << convertToHourMinSec(outgoing.front()->getExecString()) << ".\n";
+                        << noZeros(outgoing.front()->getExecString()) << ".\n";
                     }
                     else{
                         cout << outgoing.front()->getTransactionID() << ": " << outgoing.front()->getSender() << " sent " 
                         << outgoing.front()->getAmount() << " dollar to " << outgoing.front()->getReceiver() << " at "
-                        << convertToHourMinSec(outgoing.front()->getExecString()) << ".\n";
+                        << noZeros(outgoing.front()->getExecString()) << ".\n";
                     }
                     outgoing.pop_front();
                     counter++;
@@ -743,31 +724,46 @@ class bank{
         string noZeros(const string &timestamp){
             string noColon = removeColons(timestamp);
 
-            return to_string((stoi(noColon)));
+            if(noColon[0] == '0'){
+                return noColon.substr(1);
+            }
+            return noColon;
         }
 
         pair<string, uint64_t> lowerBound(const string &timestamp){
-            string lowerstring = removeColons(timestamp); 
+            string lowerstring = timestamp; 
 
-            string stringOutput = lowerstring.substr(4);
+            lowerstring.replace(9, 2, "00");
+            lowerstring.replace(12, 2, "00");
+            lowerstring.replace(15, 2, "00");
 
-            stringOutput.insert(2, ":00");
-            stringOutput.insert(5, ":00");
-            stringOutput.insert(8, ":00");
-
-            return make_pair(removeColons(stringOutput), convertTimestamp(stringOutput)); 
+            if(lowerstring[0] == '0'){
+                lowerstring = lowerstring.substr(1);
+            }
+            return make_pair(removeColons(lowerstring), convertTimestamp(lowerstring)); 
         }
         
         pair<string, uint64_t> upperBound(const string &timestamp){
-            string stringOutput = timestamp;
+            string upperstring = timestamp;
 
-            string subsetDays = stringOutput.substr(6, 2);
+            string subsetDays = upperstring.substr(6, 2);
 
             int intRep = stoi(subsetDays);
             intRep++;
             subsetDays = to_string(intRep);
-            stringOutput.replace(4, 2, subsetDays);
-            return make_pair(removeColons(stringOutput), convertTimestamp(stringOutput)); 
+            if(intRep < 10){
+                upperstring.replace(6, 2, "0" + subsetDays);
+            }
+            else{
+                upperstring.replace(6, 2, subsetDays);
+            }
+            upperstring.replace(9, 2, "00");
+            upperstring.replace(12, 2, "00");
+            upperstring.replace(15, 2, "00");
+            if(upperstring[0] == '0'){
+                upperstring = upperstring.substr(1);
+            }
+            return make_pair(removeColons(upperstring), convertTimestamp(upperstring)); 
         }
 
         void runSummarizeDay(){
@@ -789,18 +785,18 @@ class bank{
                         fee = (fee * 3) / 4;
                     }
                     amountGenerated += fee;
-                    cout << t->getExecutionDate() << ": " << t->getSender() << " sent "
+                    cout << t->getTransactionID() << ": " << t->getSender() << " sent "
                     << t->getAmount() << " dollars to " << t->getReceiver() << " at " << 
                     noZeros(t->getPlacementString()) << ".\n";
                     counter++;
                 }
             }
             if(counter == 1){
-                cout << "There were a total of " << counter << "transaction," 
+                cout << "There was a total of " << counter << " transaction," 
                 << " 281Bank has collected " << amountGenerated << " dollars in fees.\n";
             }
             else{
-                cout << "There were a total of " << counter << "transactions," 
+                cout << "There were a total of " << counter << " transactions," 
                 << " 281Bank has collected " << amountGenerated << " dollars in fees.\n";
             }
             
@@ -839,10 +835,10 @@ class bank{
                         break;
                     
                     
-                    default:
-                        cerr << "Error: invalid command line provided\n";
-                        cerr << "See -h or --help for details\n";
-                        exit(1);
+                    // default:
+                    //     cerr << "Error: invalid command line provided\n";
+                    //     cerr << "See -h or --help for details\n";
+                    //     exit(1);
                 }  // switch ..choice
             }  // whiles
             if(!file){
