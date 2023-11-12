@@ -11,6 +11,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <set>
+#include <cmath>
 
 using namespace std;
 class Transaction{
@@ -145,7 +146,7 @@ class User{
             transactionsReceived++;
         }
         uint64_t numReceived(){
-            return transactionsSent;
+            return transactionsReceived;
         }
 };
 
@@ -192,9 +193,11 @@ class bank{
         }
         uint64_t summarizeTS(vector<uint64_t> &toSum){
             uint64_t sum = 0;
+            uint64_t multiplier = 1;
             while(!toSum.empty()){
-                sum += (toSum.back() * 100ULL);
+                sum += (toSum.back() * multiplier);
                 toSum.pop_back();
+                multiplier *= 100;
             } 
             return sum;
         }
@@ -541,6 +544,8 @@ class bank{
                     existingUsers[t->getSender()]->removeMoney(totalAmt);
                     existingUsers[t->getReceiver()]->removeMoney(receiverFee);
                     existingUsers[t->getReceiver()]->addMoney(t->getAmount());
+                    existingUsers[t->getSender()]->increaseSent();
+                    existingUsers[t->getReceiver()]->increaseReceived();
                     if(verbose){
                         cout << "Transaction executed at " << removeColons(t->getExecString()) << 
                         ": $" << t->getAmount() << " from " << t->getSender() << " to " 
@@ -579,10 +584,10 @@ class bank{
 
             uint64_t numTransactions = 0;
             
-            while( !chronologicalTransactions.empty()){
+            while(!chronologicalTransactions.empty()){
                 if(chronologicalTransactions.top()->getExecutionDate() >= x && chronologicalTransactions.top()->getExecutionDate() < y){
                     if(chronologicalTransactions.top()->getAmount() != 1){
-                        cout << "  " << chronologicalTransactions.top()->getTransactionID() << ": " << chronologicalTransactions.top()->getSender() 
+                        cout << chronologicalTransactions.top()->getTransactionID() << ": " << chronologicalTransactions.top()->getSender() 
                         << " sent " << chronologicalTransactions.top()->getAmount() << " dollars to " << chronologicalTransactions.top()->getReceiver()
                         << " at " << removeColons(chronologicalTransactions.top()->getExecString()) << ".\n";
                     }
@@ -593,50 +598,45 @@ class bank{
                     }
                     numTransactions++;
                 }
-
+                chronologicalTransactions.pop();
             }
             cout << "There were " << numTransactions << " transactions that were placed between time "
             << stringForX << " to " << stringForY << ".\n";
         }
 
-        uint64_t numSeconds(const string &ts){
-            istringstream reader(ts);
-            tm t = {};
-            long total = 0;
-
-            reader >> get_time(&t, "%y:%m:%d:%H:%M:%S");
-
-            if(!reader.fail()){
-                total = mktime(&t);
-            }
-            return (uint64_t) total;
-        }
 
         string numTimePassedInInterval(const string& s1, const string& s2){
             stringstream output;
             string noColonX = removeColons(s1);
             string noColonY = removeColons(s2);
 
-            uint64_t x = numSeconds(noColonX);
-            uint64_t y = numSeconds(noColonY);
+            int years = ((stoi(noColonY.substr(0,2))) - (stoi(noColonX.substr(0,2))));
+            int months = ((stoi(noColonY.substr(2,2))) - (stoi(noColonX.substr(2,2))));
+            int days = ((stoi(noColonY.substr(4,2))) - (stoi(noColonX.substr(4,2))));
+            int hours = ((stoi(noColonY.substr(6,2))) - (stoi(noColonX.substr(6,2))));
+            int minutes = ((stoi(noColonY.substr(8,2))) - (stoi(noColonX.substr(8,2))));
+            int seconds = ((stoi(noColonY.substr(10,2))) - (stoi(noColonX.substr(10,2))));
 
-            uint64_t difference = (y - x);
+            
             const char* units[] = {"years","months","days","hours","minutes","seconds"};
-            const uint64_t unitValues[] = {31536000, 2592000, 86400, 3600, 60, 1};
-            bool shouldPrint = false;
-            for(uint64_t i = 0; i < sizeof(unitValues) / sizeof(unitValues[0]);i++ ){
-                uint64_t currentNums = difference / unitValues[i];
-                difference = difference % unitValues[i];
-
-                if(currentNums > 0 || shouldPrint){
-                    if(shouldPrint){
-                        output << " ";
+            int unitValues[] = {years, months, days, hours, minutes, seconds};
+            for(uint64_t i = 0; i < sizeof(unitValues) / sizeof(unitValues[0]); i++ ){
+                if(unitValues[i] != 0){
+                    if(unitValues[i] < 0){
+                        unitValues[i] += 100;
+                        unitValues[i - 1]--;
                     }
-                    output << currentNums << " " << units[i];
-                    shouldPrint = true;
                 }
             }
-            return output.str(); 
+            for(uint64_t i = 0; i < sizeof(unitValues) / sizeof(unitValues[0]); i++ ){
+                if(unitValues[i] != 0){
+                    output << " " << abs((double)unitValues[i]) << " " << units[i];
+                }
+            }
+
+            output << ".";
+            string toReturn = output.str();
+            return toReturn; 
         }
 
         string convertToHourMinSec(const string &placementTime){
@@ -676,7 +676,7 @@ class bank{
                     amountGenerated += fee;
                 }
             }
-            cout << "281bank has collected " << amountGenerated << " dollars in fees over "
+            cout << "281bank has collected " << amountGenerated << " dollars in fees over"
             << numTimePassedInInterval(stringForX, stringForY) << ".\n";
         }
 
@@ -685,8 +685,8 @@ class bank{
             cin >> userID;
             if(existingUsers.find(userID) != existingUsers.end()){
                 cout << "Customer " << userID << " account summary:\n";
-                cout << "Balance: " << existingUsers[userID]->getBalance() <<"\n";
-                
+                cout << "Balance: $" << existingUsers[userID]->getBalance() <<"\n";
+                cout << "Total # of transactions: " << (existingUsers[userID]->numReceived() + existingUsers[userID]->numSent()) << "\n";
                 string incomingInfo;
                 string outgoingInfo;
                 deque<Transaction*> incoming;
@@ -703,34 +703,34 @@ class bank{
                 cout << "Incoming " << existingUsers[userID]->numReceived() << ":\n";
                 uint64_t counter = 0;
                 while(!incoming.empty() && counter <= 10){
-                    if(incoming.back()->getAmount() != 1){
-                        cout << incoming.back()->getTransactionID() << ": " << incoming.back()->getSender() << " sent " 
-                        << incoming.back()->getAmount() << " dollars to " << incoming.back()->getReceiver() << " at "
-                        << convertToHourMinSec(incoming.back()->getExecString()) << ".\n";
+                    if(incoming.front()->getAmount() != 1){
+                        cout << incoming.front()->getTransactionID() << ": " << incoming.front()->getSender() << " sent " 
+                        << incoming.front()->getAmount() << " dollars to " << incoming.front()->getReceiver() << " at "
+                        << convertToHourMinSec(incoming.front()->getExecString()) << ".\n";
                     }
                     else{
-                        cout << incoming.back()->getTransactionID() << ": " << incoming.back()->getSender() << " sent " 
-                        << incoming.back()->getAmount() << " dollar to " << incoming.back()->getReceiver() << " at "
-                        << convertToHourMinSec(incoming.back()->getExecString()) << ".\n";
+                        cout << incoming.front()->getTransactionID() << ": " << incoming.front()->getSender() << " sent " 
+                        << incoming.front()->getAmount() << " dollar to " << incoming.front()->getReceiver() << " at "
+                        << convertToHourMinSec(incoming.front()->getExecString()) << ".\n";
                     }
-                    incoming.pop_back();
+                    incoming.pop_front();
                     counter++;
                 }
 
                 counter = 0;
                 cout << "Outgoing " << existingUsers[userID]->numSent() << ":\n";
                 while(!outgoing.empty() && counter <= 10){
-                    if(outgoing.back()->getAmount() != 1){
-                        cout << outgoing.back()->getTransactionID() << ": " << outgoing.back()->getSender() << " sent " 
-                        << outgoing.back()->getAmount() << " dollars to " << outgoing.back()->getReceiver() << " at "
-                        << convertToHourMinSec(outgoing.back()->getExecString()) << ".\n";
+                    if(outgoing.front()->getAmount() != 1){
+                        cout << outgoing.front()->getTransactionID() << ": " << outgoing.front()->getSender() << " sent " 
+                        << outgoing.front()->getAmount() << " dollars to " << outgoing.front()->getReceiver() << " at "
+                        << convertToHourMinSec(outgoing.front()->getExecString()) << ".\n";
                     }
                     else{
-                        cout << outgoing.back()->getTransactionID() << ": " << outgoing.back()->getSender() << " sent " 
-                        << outgoing.back()->getAmount() << " dollar to " << outgoing.back()->getReceiver() << " at "
-                        << convertToHourMinSec(outgoing.back()->getExecString()) << ".\n";
+                        cout << outgoing.front()->getTransactionID() << ": " << outgoing.front()->getSender() << " sent " 
+                        << outgoing.front()->getAmount() << " dollar to " << outgoing.front()->getReceiver() << " at "
+                        << convertToHourMinSec(outgoing.front()->getExecString()) << ".\n";
                     }
-                    outgoing.pop_back();
+                    outgoing.pop_front();
                     counter++;
                 }
             }

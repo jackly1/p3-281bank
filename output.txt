@@ -1,16 +1,23 @@
 Failed to log in mertg.
-At the time of execution, sender and/or recipient have not registered.
+Select a time less than three days in the future.
 User mertg logged in.
-At the time of execution, sender and/or recipient have not registered.
 Select a time less than three days in the future.
-Select a time less than three days in the future.
-Select a time less than three days in the future.
+Fraudulent transaction detected, aborting request.
+Transaction placed at 080301402236: $2000 from mertg to paoletti at 080302402234.
+Transaction executed at 080302402234: $2000 from mertg to paoletti.
+Transaction placed at 080504402236: $2000 from mertg to paoletti at 080505404434.
 User mertg logged out.
-There were 0 transactions that were placed between time 08:03:01:40:22:36 to 09:03:01:40:22:34.
-281bank has collected 0 dollars in fees over .
+Transaction executed at 080505404434: $2000 from mertg to paoletti.
+0: mertg sent 2000 dollars to paoletti at 080302402234.
+1: mertg sent 2000 dollars to paoletti at 080505404434.
+There were 2 transactions that were placed between time 08:03:01:40:22:36 to 09:03:01:40:22:34.
+281bank has collected 30 dollars in fees over 20 months 5 days 71 hours 39 minutes 98 seconds..
 Customer mertg account summary:
-Balance: 20000
+Balance: $15984
+Total # of transactions: 2
 Incoming 0:
-Outgoing 0:
+Outgoing 2:
+1: mertg sent 2000 dollars to paoletti at 434443044344435043444304434443.
+0: mertg sent 2000 dollars to paoletti at 432243044322432043224304432243.
 Summary of [02000000302236, 080302302236):
 There were a total of 0transactions, 281Bank has collected 0 dollars in fees.
