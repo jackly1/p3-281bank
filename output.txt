@@ -7,3 +7,10 @@ Select a time less than three days in the future.
 Select a time less than three days in the future.
 User mertg logged out.
 There were 0 transactions that were placed between time 08:03:01:40:22:36 to 09:03:01:40:22:34.
+281bank has collected 0 dollars in fees over .
+Customer mertg account summary:
+Balance: 20000
+Incoming 0:
+Outgoing 0:
+Summary of [02000000302236, 080302302236):
+There were a total of 0transactions, 281Bank has collected 0 dollars in fees.

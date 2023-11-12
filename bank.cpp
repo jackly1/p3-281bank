@@ -602,14 +602,14 @@ class bank{
         uint64_t numSeconds(const string &ts){
             istringstream reader(ts);
             tm t = {};
-            uint64_t numSeconds;
+            long total = 0;
 
             reader >> get_time(&t, "%y:%m:%d:%H:%M:%S");
 
             if(!reader.fail()){
-                numSeconds = mktime(&t);
+                total = mktime(&t);
             }
-            return numSeconds;
+            return (uint64_t) total;
         }
 
         string numTimePassedInInterval(const string& s1, const string& s2){
@@ -636,47 +636,7 @@ class bank{
                     shouldPrint = true;
                 }
             }
-            return output.str();
-
-
-            // string diffString = to_string(difference);
-            // string output;
-            // int unitCounter = 1;
-            // string currentDuo = "";
-            // for(uint64_t i = diffString.length() - 1; i >= 0; i--){
-            //     currentDuo = currentDuo + diffString[i];
-            //     i--;
-            //     currentDuo = currentDuo + diffString[i];
-            //     if(currentDuo != "00"){
-            //         if(unitCounter == 1){
-            //             currentDuo.append(" seconds");
-            //             currentDuo.append(output);
-            //             output = currentDuo;
-            //         }else if(unitCounter == 2){
-            //             currentDuo.append(" minutes ");
-            //             currentDuo.append(output);
-            //             output = currentDuo;
-            //         } else if(unitCounter == 3){
-            //             currentDuo.append(" hours ");
-            //             currentDuo.append(output);
-            //             output = currentDuo;
-            //         }else if(unitCounter == 4){
-            //             currentDuo.append(" days ");
-            //             currentDuo.append(output);
-            //             output = currentDuo;
-            //         }else if(unitCounter == 5){
-            //             currentDuo.append(" months ");
-            //             currentDuo.append(output);
-            //             output = currentDuo;
-            //         }else if(unitCounter == 6){
-            //             currentDuo.append(" years ");
-            //             currentDuo.append(output);
-            //             output = currentDuo;
-            //         }
-            //         unitCounter++;
-            //     }
-            // }
-            // return output;  
+            return output.str(); 
         }
 
         string convertToHourMinSec(const string &placementTime){
@@ -786,39 +746,15 @@ class bank{
             return to_string((stoi(noColon)));
         }
 
-        pair<string, uint64_t> lowerBound(string &timestamp){
-            timestamp = removeColons(timestamp); 
-            string lowerString;
+        pair<string, uint64_t> lowerBound(const string &timestamp){
+            string lowerstring = removeColons(timestamp); 
 
-            string stringOutput;
-            int unitCounter = 0;
+            string stringOutput = lowerstring.substr(4);
 
-            for(uint64_t i = timestamp.length() - 1; i >= 0; i--){\
-                unitCounter ++;
-                string currentDuo;
-                if(unitCounter <= 6){
-                    currentDuo = ":00";
-                    i--;
-                    currentDuo.append(stringOutput);
-                    stringOutput = currentDuo;
-                }
-                else{
-                    if(unitCounter <= 10){
-                        currentDuo = ":" + currentDuo + timestamp[i];
-                        i--;
-                        currentDuo = currentDuo + timestamp[i];
-                        currentDuo.append(stringOutput);
-                        stringOutput = currentDuo;
-                    }
-                    else{
-                        currentDuo = currentDuo + timestamp[i];
-                        i--;
-                        currentDuo = currentDuo + timestamp[i];
-                        currentDuo.append(stringOutput);
-                        stringOutput = currentDuo;
-                    }
-                }
-            }
+            stringOutput.insert(2, ":00");
+            stringOutput.insert(5, ":00");
+            stringOutput.insert(8, ":00");
+
             return make_pair(removeColons(stringOutput), convertTimestamp(stringOutput)); 
         }
         
@@ -826,11 +762,11 @@ class bank{
             string stringOutput = timestamp;
 
             string subsetDays = stringOutput.substr(6, 2);
+
             int intRep = stoi(subsetDays);
             intRep++;
             subsetDays = to_string(intRep);
-            stringOutput[6] = subsetDays[0];
-            stringOutput[7] = subsetDays[1];
+            stringOutput.replace(4, 2, subsetDays);
             return make_pair(removeColons(stringOutput), convertTimestamp(stringOutput)); 
         }
 
