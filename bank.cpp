@@ -34,9 +34,6 @@ class Transaction{
         uint64_t getPlacementTime(){
             return placementTime;
         }
-        void setIP(const uint64_t &n){
-            senderIP = n;
-        }
         uint64_t getIP(){
             return senderIP;
         }
@@ -249,7 +246,7 @@ class bank{
             return false;
         }
 
-        bool hasSufficientFunds(string userID, double amountDue){
+        bool hasSufficientFunds(string userID, uint64_t amountDue){
             if(amountDue > existingUsers[userID]->getBalance()){
                 return false;
             }
@@ -412,7 +409,7 @@ class bank{
             uint64_t timestamp = convertTimestamp(stringFormtimestamp);
             uint64_t execDate = convertTimestamp(stringFormExecDate);
             uint64_t ip = convertIP(longFormIP);
-            bool shared;
+            bool shared = false;
             if(oORs == 'o'){
                 shared = false;
             }
