@@ -1,0 +1,26 @@
+#This is the the third test commands file.
+login jackly 928374 291.43.171.61
+login frank 522006 100.12.123.12
+login log 110303 123.43.212.97
+login grey 280192 917.86.131.12
+login bluesky 737372 212.27.416.67
+place 08:02:01:40:22:34 291.31.78.43 jackly penelope 2000000 08:02:01:40:22:35 o
+login jackly 928374 291.43.171.61
+login stevie 123456 188.43.201.61
+place 08:03:01:40:22:34 134.31.78.43 jackly stevie 128 09:03:01:40:22:34 o
+place 08:03:01:40:22:35 134.31.78.43 stevie jackly 45678 08:03:02:40:22:34 s
+out stevie 188.43.201.61
+place 08:03:01:40:22:36 291.43.171.61 log grey 12939 08:03:02:40:22:34 s
+place 08:05:04:40:22:36 291.43.171.61 bluesky frank 63636 08:06:04:40:22:36 o
+out log 123.43.212.97
+out grey 917.86.131.12
+out bluesky 212.27.416.67
+place 08:05:04:40:22:36 291.43.171.61 frank bluesky 12345 08:05:05:40:44:34 s
+out jackly 291.43.171.61
+out frank 100.12.123.12
+# The operations section ends with $$$, followed by the queries (if any).
+$$$
+l 08:03:01:40:22:36 09:03:01:40:22:34
+r 08:03:01:40:22:36 08:23:07:11:62:34
+h jackly
+s 08:03:02:30:22:36

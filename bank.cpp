@@ -441,7 +441,6 @@ class bank{
                 ridComment();
             }
             else if(commandName == "login"){
-                //might have to save the outcome of this, not sure yet
                 login();
             }
             else if(commandName == "out"){

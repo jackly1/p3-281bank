@@ -1,0 +1,17 @@
+#This is the the first test commands file.
+login jackly 928374 291.43.171.61
+place 08:02:01:40:22:34 291.31.78.43 jackly penelope 2000 09:02:01:40:22:34 s
+login jackly 928374 291.43.171.61
+login stevie 123456 188.43.201.61
+place 08:03:01:40:22:34 134.31.78.43 jackly penelope 2000 09:03:01:40:22:34 s
+place 08:03:01:40:22:35 134.31.78.43 stevie jonathon 2000 08:03:02:40:22:34 s
+out stevie 188.43.201.61
+place 08:03:01:40:22:36 291.43.171.61 jackly penelope 2000 08:03:02:40:22:34 s
+place 08:05:04:40:22:36 291.43.171.61 jackly fred 2000 08:20:05:40:44:34 s
+out jackly 291.43.171.61
+# The operations section ends with $$$, followed by the queries (if any).
+$$$
+l 08:03:01:40:22:36 09:03:01:40:22:34
+r 08:03:01:40:22:36 08:23:07:11:62:34
+h jonathon
+s 08:03:02:30:22:36
