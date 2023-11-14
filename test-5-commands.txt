@@ -1,4 +1,47 @@
 #This is the fourth commands file
-login johnnny 180499 231.43.171.61
-login mertg 80499 221.43.171.61
+#test that user exists
+login frog 019283 828.43.171.61
+#test that pins match
+login mertg 833833 231.43.171.61
+#test with proper user format
+login mertg 080499 231.43.171.61
+#test place with timestamp > 3 days
+place 08:02:01:40:22:34 231.43.171.61 mertg johnnny 2000 09:02:01:40:22:34 s
+#test place with timestamp <= 3 days
+place 08:02:01:40:22:34 231.43.171.61 mertg johnnny 2000 08:02:02:40:22:34 s
+#test place with non-real sender
+place 08:02:02:40:22:34 231.43.171.61 frog johnnny 2000 08:02:02:40:22:35 s
+#test place with non-real recipient
+place 08:02:02:40:22:34 231.43.171.61 mertg frog 2000 08:02:02:40:22:35 s
+#test place with real sender and real recipient
+place 08:02:02:40:22:34 231.43.171.61 mertg johnnny 2000 08:02:02:40:22:35 s
+login christopher 343434 838.23.171.61
+login tony 585858 232.88.171.61
+login carmela 123422 222.88.171.61
+#test place with execution date > sender creation but < recipient creation
+place 08:02:02:40:22:34 838.23.171.61 christopher tony 2000 08:02:02:40:22:37 s
+#test place with execution date > recipient creation but < sender creation
+place 08:02:02:40:22:34 222.88.171.61 carmela tony 2000 08:02:02:40:22:39 s
+#test place with execution date > sender creation and > recipient creation
+place 08:02:02:40:22:34 232.88.171.61 tony carmela 2000 08:02:02:40:22:44 s
+out christopher 838.23.171.61
+out tony 232.88.171.61
+out carmela 222.88.171.61
+out mertg 231.43.171.61
+login mertg 080499 232.43.171.61
+#test place with sender unactive
+place 08:03:02:40:23:44 232.88.171.61 tony carmela 2000 08:03:02:40:23:46 s
+#test place with inactive ip
+place 08:03:02:40:23:44 231.43.171.61 mertg johnnny 2000 08:03:02:40:23:46 s
+#test user log out with non-real user
+out frog 231.43.171.61
+#test user log out with incorrect ip
+out mertg 230.43.171.61
+#test user log out properly
+out mertg 232.43.171.61
+#The operations section ends with $$$, followed by the queries (if any).
 $$$
+l 08:02:02:40:22:34 08:03:02:40:23:46
+r 
+h
+s

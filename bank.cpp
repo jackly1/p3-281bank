@@ -79,6 +79,7 @@ class lowerBoundComparator{
             return t1->getExecutionDate() > executionDate;
         }
 };
+
 class User{
     private:
         uint64_t regTimestamp;
@@ -87,7 +88,7 @@ class User{
         uint64_t pin;
         uint64_t balance;
         bool activeSession;
-        deque<string> ips;
+        unordered_set<string> ips;
         uint64_t transactionsSent;
         uint64_t transactionsReceived;
     public:
@@ -135,24 +136,15 @@ class User{
         uint64_t numReceived(){
             return transactionsReceived;
         }
-        void pushBackDeque(string s){
-            ips.push_back(s);
+        void push(string s){
+            ips.insert(s);
         }
         void removeElt(string s){
-            int counter = 0;
-            for(auto curr: ips){
-                if(curr == s){
-                    ips.erase(ips.begin() + counter);
-                    break;
-                }
-                counter++;
-            }
+            ips.erase(s);
         }
         bool elementExists(string s){
-            for(auto curr: ips){
-                if(curr == s){
-                    return true;
-                }
+            if(ips.find(s) != ips.end()){
+                return true;
             }
             return false;
         }
@@ -171,30 +163,18 @@ class bank{
                     }
                 }
         };
-
-        class chronologicalComparator{
-            public:
-                bool operator()(Transaction *a, Transaction *b){
-                    if(a->getPlacementTime() != b->getPlacementTime()){
-                        return a->getPlacementTime() > b->getPlacementTime();
-                    }
-                    else{
-                        return a->getTransactionID() > b->getTransactionID();
-                    }
-                }
-        };
         bool file = false;
         string filename;
         bool verbose = false;
         unordered_map<string, User*> existingUsers;
         priority_queue<Transaction*, vector<Transaction*>, executionComparator> pendingTransactions;
-        priority_queue<Transaction*,  vector<Transaction*>, chronologicalComparator> chronologicalTransactions;
+        priority_queue<Transaction*,  vector<Transaction*>, executionComparator> chronologicalTransactions;
         vector<Transaction*> transactionMasterList;
         uint64_t transactionIDCounter = 0;
         uint64_t lastPlacedTimestamp = 0;
 
         void throwFileError(){
-            cerr << "file name not provided\n";
+            cerr << "registrations filename not provided\n";
             exit(1);
         }
         uint64_t convertTimestamp(string ts){
@@ -303,31 +283,42 @@ class bank{
         }
 
         void readCommands(){
-            fstream fin(filename);
+            ifstream fin(filename, ifstream::in);
             string fullLine;
             uint64_t pos = 0;
             while(fin >> fullLine){
-                //read line one by one
+                //read timestamp first
                 string ts;
-
                 pos = fullLine.find("|");
                 ts = fullLine.substr(0, pos);
                 fullLine.erase(0, pos + 1);
+
+                //then reads the userID
                 string i;
                 pos = fullLine.find("|");
                 i = fullLine.substr(0, pos);
                 fullLine.erase(0, pos + 1);
+
+                //then reads pin
                 string p;
                 pos = fullLine.find("|");
                 p = fullLine.substr(0, pos);
                 fullLine.erase(0, pos + 1);
+                
+                //finally reads balance from the rest of the line
                 string sb = fullLine;
                 
-                uint64_t pin = (uint64_t)stoi(p);
-                uint64_t startBalance = (uint64_t)stoi(sb);
+                //converts pin and balance to unsigned ints
+                uint64_t pin = stoull(p);
+                uint64_t startBalance = stoull(sb);
+                //creates a new user with above info
                 User* newU = new User(convertTimestamp(ts), ts, i, pin, startBalance);
+                
+                //adds the newuser to the existingUsers hash table at <userID, User*>
                 existingUsers[i] = newU;
             }
+            fin.close();
+            //runs through each command line now that users have been registered
             string curr;
             cin >> curr;
             while(curr != "$$$"){
@@ -347,13 +338,14 @@ class bank{
         //logs user in according to rules
         void login(){
             string userID;
-            uint64_t pin;
+            string p;
             string ip;
-            cin >> userID >> pin >> ip;
+            cin >> userID >> p >> ip;
+            uint64_t pin = stoull(p);
             if(existingUsers.find(userID) != existingUsers.end()){
                 if(existingUsers[userID]->getPin() == pin){
                     existingUsers[userID]->makeActive();
-                    existingUsers[userID]->pushBackDeque(ip);
+                    existingUsers[userID]->push(ip);
                     if(verbose){
                         cout << "User " << userID << " logged in.\n";
                     }
@@ -416,6 +408,7 @@ class bank{
             //do all conversions from strings to uint64_t for what requires it
             uint64_t timestamp = convertTimestamp(stringFormtimestamp);
             uint64_t execDate = convertTimestamp(stringFormExecDate);
+
             bool shared = false;
             if(oORs == 'o'){
                 shared = false;
@@ -434,12 +427,12 @@ class bank{
                     isGood = checkFraudulent(currTransaction);
                 }
                 //now execute transactions <= the transaction
-                executeLessThanEqual(currTransaction);
                 if(isGood){
+                    executeLessThanEqual(currTransaction);
                     currTransaction->setTransactionID(generateNewID());
                     if(verbose){
-                        cout << "Transaction placed at " << noZeros(stringFormtimestamp) << ": $" << amount 
-                        << " from " << sender << " to " << recipient << " at " << noZeros(stringFormExecDate) << ".\n";
+                        cout << "Transaction placed at " << currTransaction->getPlacementTime() << ": $" << amount 
+                        << " from " << sender << " to " << recipient << " at " << currTransaction->getExecutionDate() << ".\n";
                     }
                     transactionMasterList.push_back(currTransaction);
                     pendingTransactions.push(currTransaction);
@@ -476,35 +469,32 @@ class bank{
         }
 
         bool hasBeenLoyal(const string& userID, const uint64_t &transactionTimestamp){
-            uint64_t yearExecution = transactionTimestamp % 100000000000ull / 100000000000ull;
-            uint64_t yearRegistration = existingUsers[userID]->getTimestamp() % 100000000000ull / 100000000000ull;
-        
-            if(yearExecution - yearRegistration > 50000000000ull){
+            uint64_t difference = transactionTimestamp - existingUsers[userID]->getTimestamp();
+            if(difference > 50000000000ull){
                 return true;
             }
             return false;
         }
 
-        uint64_t calcFee(const uint64_t &amount){
-            uint64_t fee = (amount / 100);
+        uint64_t calcFee(Transaction *t){
+            uint64_t fee = (t->getAmount() / 100);
             if(fee > 450){
-                return 450;
+                fee = 450;
             }
             else if (fee < 10){
-                return 10;
+                fee = 10;
             }
-            else{
-                return fee;
+
+            if(hasBeenLoyal(t->getSender(), t->getExecutionDate())){
+                fee = (fee * 3) / 4;
             }
+            return fee;
         }
 
         void execute(Transaction* t){
             if(!t->isShared()){
                 uint64_t totalAmt = t->getAmount();
-                uint64_t fee = calcFee(t->getAmount());
-                if(hasBeenLoyal(t->getSender(), t->getExecutionDate())){
-                    fee = (fee * 3) / 4;
-                }
+                uint64_t fee = calcFee(t);
                 t->setFee(fee);
                 totalAmt += fee;
                 if(hasSufficientFunds(t->getSender(), totalAmt)){
@@ -513,7 +503,7 @@ class bank{
                     existingUsers[t->getSender()]->increaseSent();
                     existingUsers[t->getReceiver()]->increaseReceived();
                     if(verbose){
-                        cout << "Transaction executed at " << noZeros(t->getExecString()) << 
+                        cout << "Transaction executed at " << t->getExecutionDate() << 
                         ": $" << t->getAmount() << " from " << t->getSender() << " to " 
                         << t->getReceiver() << ".\n";
                     }
@@ -526,10 +516,7 @@ class bank{
             }else{
                 //shared means the fee is shared between the two parties
                 uint64_t totalAmt = t->getAmount();
-                uint64_t fee = calcFee(t->getAmount());
-                if(hasBeenLoyal(t->getSender(), t->getExecutionDate())){
-                    fee = (fee * 3) / 4;
-                }
+                uint64_t fee = calcFee(t);
                 t->setFee(fee);
                 //first make both set equal to fee/2
                 uint64_t senderFee = fee/2;
@@ -549,7 +536,7 @@ class bank{
                     existingUsers[t->getSender()]->increaseSent();
                     existingUsers[t->getReceiver()]->increaseReceived();
                     if(verbose){
-                        cout << "Transaction executed at " << noZeros(t->getExecString()) << 
+                        cout << "Transaction executed at " << t->getExecutionDate() << 
                         ": $" << t->getAmount() << " from " << t->getSender() << " to " 
                         << t->getReceiver() << ".\n";
                     }
@@ -591,19 +578,25 @@ class bank{
                     if(chronologicalTransactions.top()->getAmount() != 1){
                         cout << chronologicalTransactions.top()->getTransactionID() << ": " << chronologicalTransactions.top()->getSender() 
                         << " sent " << chronologicalTransactions.top()->getAmount() << " dollars to " << chronologicalTransactions.top()->getReceiver()
-                        << " at " << noZeros(chronologicalTransactions.top()->getExecString()) << ".\n";
+                        << " at " << chronologicalTransactions.top()->getExecutionDate() << ".\n";
                     }
                     else{
                         cout << chronologicalTransactions.top()->getTransactionID() << ": " << chronologicalTransactions.top()->getSender() 
                         << " sent " << chronologicalTransactions.top()->getAmount() << " dollar to " << chronologicalTransactions.top()->getReceiver()
-                        << " at " << noZeros(chronologicalTransactions.top()->getExecString()) << ".\n";
+                        << " at " << chronologicalTransactions.top()->getExecutionDate() << ".\n";
                     }
                     numTransactions++;
                 }
                 chronologicalTransactions.pop();
             }
-            cout << "There were " << numTransactions << " transactions that were placed between time "
-            << noZeros(stringForX) << " to " << noZeros(stringForY) << ".\n";
+            if(numTransactions > 1){
+                cout << "There were " << numTransactions << " transactions that were placed between time "
+                << x << " to " << y << ".\n";
+            }
+            else{
+                cout << "There was " << numTransactions << " transaction that was placed between time "
+                << x << " to " << y << ".\n";
+            }
         }
 
 
@@ -622,50 +615,50 @@ class bank{
 
             if(years != 0){
                 if(years > 1){
-                    cout << years << " years ";
+                    cout << " " << years << " years";
                 }
                 else{
-                     cout << years << " year ";
+                     cout << " " << years << " year";
                 }
             }
             if(months != 0){
                 if(months > 1){
-                    cout << months << " months " ;
+                    cout << " " << months << " months" ;
                 }
                 else{
-                     cout << months << " month ";
+                     cout << " " << months << " month";
                 }
             }
             if(days != 0){
                 if(days > 1){
-                    cout << days << " days " ;
+                    cout << " " << days << " days" ;
                 }
                 else{
-                     cout << days << " day ";
+                     cout << " " << days << " day";
                 }
             }
             if(hours != 0){
                 if(hours > 1){
-                    cout << hours << " hours " ;
+                    cout << " " << hours << " hours" ;
                 }
                 else{
-                     cout << hours << " hour ";
+                     cout << " " << hours << " hour";
                 }
             }
             if(minutes != 0){
                 if(minutes > 1){
-                    cout << minutes << " minutes " ;
+                    cout << " " << minutes << " minutes" ;
                 }
                 else{
-                     cout << minutes << " minute ";
+                     cout << " " << minutes << " minute";
                 }
             }
             if(seconds != 0){
                 if(seconds > 1){
-                    cout << seconds << " seconds";
+                    cout << " " << seconds << " seconds";
                 }
                 else{
-                     cout << seconds << " second";
+                     cout << " " << seconds << " second";
                 }
             }
             cout << ".";
@@ -689,7 +682,7 @@ class bank{
                 }
             }
 
-            cout << "281Bank has collected " << amountGenerated << " dollars in fees over ";
+            cout << "281Bank has collected " << amountGenerated << " dollars in fees over";
             numTimePassedInInterval(stringForX, stringForY);
             cout << "\n";
         }
@@ -719,12 +712,12 @@ class bank{
                     if(incoming.front()->getAmount() != 1){
                         cout << incoming.front()->getTransactionID() << ": " << incoming.front()->getSender() << " sent " 
                         << incoming.front()->getAmount() << " dollars to " << incoming.front()->getReceiver() << " at "
-                        << noZeros(incoming.front()->getExecString()) << ".\n";
+                        << incoming.front()->getExecutionDate() << ".\n";
                     }
                     else{
                         cout << incoming.front()->getTransactionID() << ": " << incoming.front()->getSender() << " sent " 
                         << incoming.front()->getAmount() << " dollar to " << incoming.front()->getReceiver() << " at "
-                        << noZeros(incoming.front()->getExecString()) << ".\n";
+                        << incoming.front()->getExecutionDate() << ".\n";
                     }
                     incoming.pop_front();
                     counter++;
@@ -736,12 +729,12 @@ class bank{
                     if(outgoing.front()->getAmount() != 1){
                         cout << outgoing.front()->getTransactionID() << ": " << outgoing.front()->getSender() << " sent " 
                         << outgoing.front()->getAmount() << " dollars to " << outgoing.front()->getReceiver() << " at "
-                        << noZeros(outgoing.front()->getExecString()) << ".\n";
+                        << outgoing.front()->getExecutionDate() << ".\n";
                     }
                     else{
                         cout << outgoing.front()->getTransactionID() << ": " << outgoing.front()->getSender() << " sent " 
                         << outgoing.front()->getAmount() << " dollar to " << outgoing.front()->getReceiver() << " at "
-                        << noZeros(outgoing.front()->getExecString()) << ".\n";
+                        << outgoing.front()->getExecutionDate() << ".\n";
                     }
                     outgoing.pop_front();
                     counter++;
@@ -761,54 +754,39 @@ class bank{
             return noColon;
         }
 
-        pair<string, uint64_t> lowerBound(const string &timestamp){
-            string lowerstring = timestamp; 
-
-            lowerstring.replace(9, 2, "00");
-            lowerstring.replace(12, 2, "00");
-            lowerstring.replace(15, 2, "00");
-            return make_pair(removeColons(lowerstring), convertTimestamp(lowerstring)); 
-        }
-        
-        pair<string, uint64_t> upperBound(const string &timestamp){
-            string upperstring = timestamp;
-
-            string subsetDays = upperstring.substr(6, 2);
-
-            int intRep = stoi(subsetDays);
-            intRep++;
-            subsetDays = to_string(intRep);
-            if(intRep < 10){
-                upperstring.replace(6, 2, "0" + subsetDays);
-            }
-            else{
-                upperstring.replace(6, 2, subsetDays);
-            }
-            upperstring.replace(9, 2, "00");
-            upperstring.replace(12, 2, "00");
-            upperstring.replace(15, 2, "00");
-            return make_pair(removeColons(upperstring), convertTimestamp(upperstring)); 
-        }
-
         void runSummarizeDay(){
             string timestamp;
             cin >> timestamp;
 
-            pair<string, uint64_t> lower = lowerBound(timestamp);
-            pair<string, uint64_t> upper = upperBound(timestamp);
+            uint64_t lowerDayBound = convertTimestamp(timestamp);
+            //truncate and turn everything after the day to 0s
+            lowerDayBound = (lowerDayBound / 1000000ULL) * 1000000ULL;
 
+            uint64_t upperDayBound = lowerDayBound + 1000000ULL;
 
+            int counter = 0;
             uint64_t amountGenerated = 0;
 
-            cout << "Summary of [" << noZeros(lower.first) << ", " << noZeros(upper.first) << "):\n";
-            int counter = 0;
+            cout << "Summary of [" << lowerDayBound << ", " << upperDayBound << "):\n";
+            
             for(auto &t: transactionMasterList){
-                if(t->getExecutionDate() >= lower.second && t->getExecutionDate() < upper.second){
+                if(t->getExecutionDate() >= lowerDayBound && t->getExecutionDate() < upperDayBound){
+                    if(t->getAmount() == 1){
+                        cout << t->getTransactionID() << ": " << t->getSender() << " sent "
+                        << t->getAmount() << " dollar to " << t->getReceiver() << " at " << 
+                        (t->getExecutionDate()) << ".\n";
+                    }
+                    else{
+                        cout << t->getTransactionID() << ": " << t->getSender() << " sent "
+                        << t->getAmount() << " dollars to " << t->getReceiver() << " at " << 
+                        (t->getExecutionDate()) << ".\n";
+                    }
+
                     amountGenerated += t->getFee();
-                    cout << t->getTransactionID() << ": " << t->getSender() << " sent "
-                    << t->getAmount() << " dollars to " << t->getReceiver() << " at " << 
-                    noZeros(t->getExecString()) << ".\n";
                     counter++;
+                }
+                else if(t->getExecutionDate() > upperDayBound){
+                    break;
                 }
             }
             if(counter == 1){
@@ -822,7 +800,14 @@ class bank{
             
         }
     public:
-
+        void clearPointers(){
+            for(auto &t:transactionMasterList){
+                delete t;
+            }
+            for(auto& u:existingUsers){
+                delete u.second;
+            }
+        }
         void read(){
             readCommands();
             executeTransactions();
