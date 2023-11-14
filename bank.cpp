@@ -12,29 +12,32 @@
 #include <unordered_set>
 #include <set>
 #include <cmath>
+#include <iterator>
+#include <stdlib.h>
 
 using namespace std;
 class Transaction{
     private:
         uint64_t placementTime;
         string stringFormPlacementTime;
-        uint64_t senderIP;
+        string senderIP;
         string sender;
         string receiver;
         uint64_t amount;
         uint64_t executionDate;
+        uint64_t fee;
         string stringFromExecDate;
         bool shared;
         uint64_t transactionID;
     public:
     //constructor
-        Transaction(const uint64_t &pt, const string &sfpt, const uint64_t &si, const string &s, const string &r, const uint64_t &a, const uint64_t &ed, const bool &o, const string &sed)
-        : placementTime(pt), stringFormPlacementTime(sfpt), senderIP(si), sender(s), receiver(r), amount(a), executionDate(ed), stringFromExecDate(sed), shared(o), transactionID(0){}
+        Transaction(const uint64_t &pt, const string &sfpt, const string &si, const string &s, const string &r, const uint64_t &a, const uint64_t &ed, const bool &o, const string &sed)
+        : placementTime(pt), stringFormPlacementTime(sfpt), senderIP(si), sender(s), receiver(r), amount(a), executionDate(ed), fee(0), stringFromExecDate(sed), shared(o), transactionID(0){}
 
         uint64_t getPlacementTime(){
             return placementTime;
         }
-        uint64_t getIP(){
+        string getIP(){
             return senderIP;
         }
         string getSender(){
@@ -45,6 +48,12 @@ class Transaction{
         }
         uint64_t getAmount(){
             return amount;
+        }
+        void setFee(const uint64_t &f){
+            fee = f;
+        }
+        uint64_t getFee(){
+            return fee;
         }
         uint64_t getExecutionDate(){
             return executionDate;
@@ -61,6 +70,14 @@ class Transaction{
         uint64_t getTransactionID(){
             return transactionID;
         }
+
+};
+
+class lowerBoundComparator{
+    public:
+        bool operator()(Transaction* t1, const uint64_t &executionDate){
+            return t1->getExecutionDate() > executionDate;
+        }
 };
 class User{
     private:
@@ -70,6 +87,7 @@ class User{
         uint64_t pin;
         uint64_t balance;
         bool activeSession;
+        deque<string> ips;
         uint64_t transactionsSent;
         uint64_t transactionsReceived;
     public:
@@ -117,12 +135,31 @@ class User{
         uint64_t numReceived(){
             return transactionsReceived;
         }
+        void pushBackDeque(const string &s){
+            ips.push_back(s);
+        }
+        void removeElt(const string &s){
+            int counter = 0;
+            for(auto curr: ips){
+                if(curr == s){
+                    ips.erase(ips.begin() + counter);
+                    break;
+                }
+                counter++;
+            }
+        }
+        bool elementExists(const string &s){
+            for(auto curr: ips){
+                if(curr == s){
+                    return true;
+                }
+            }
+            return false;
+        }
 };
 
 class bank{
     private:
-        
-        
         class executionComparator{
             public:
                 bool operator()(Transaction *a, Transaction *b){
@@ -150,36 +187,26 @@ class bank{
         string filename;
         bool verbose = false;
         unordered_map<string, User*> existingUsers;
-        unordered_map<string, unordered_set<uint64_t>> userIPs;
         priority_queue<Transaction*, vector<Transaction*>, executionComparator> pendingTransactions;
         priority_queue<Transaction*,  vector<Transaction*>, chronologicalComparator> chronologicalTransactions;
-        deque<Transaction*> transactionMasterList;
+        vector<Transaction*> transactionMasterList;
         uint64_t transactionIDCounter = 0;
 
         void throwFileError(){
             cerr << "file name not provided\n";
             exit(1);
         }
-        uint64_t summarizeTS(vector<uint64_t> &toSum){
-            uint64_t sum = 0;
-            uint64_t multiplier = 1;
-            while(!toSum.empty()){
-                sum += (toSum.back() * multiplier);
-                toSum.pop_back();
-                multiplier *= 100;
-            } 
-            return sum;
-        }
         uint64_t convertTimestamp(string ts){
-            stringstream sin(ts);
-            vector<uint64_t> nums;
-            string curr;
-            while(getline(sin, curr, ':')){
-                nums.push_back((uint64_t)(stoi(curr)));
-            }
-            getline(sin, curr);
-            nums.push_back(((uint64_t)stoi(curr)));
-            return summarizeTS(nums);
+            string total;
+
+            total += ts.substr(0,2);
+            total += ts.substr(3,2);
+            total += ts.substr(6,2);
+            total += ts.substr(9,2);
+            total += ts.substr(12,2);
+            total += ts.substr(15,2);
+            uint64_t toReturn = stoull(total);
+            return toReturn;
         }
 
         uint64_t generateNewID(){
@@ -188,7 +215,7 @@ class bank{
 
 
         bool checkFraudulent(Transaction *t){
-            if(userIPs[t->getSender()].find(t->getIP()) == userIPs[t->getSender()].end()){
+            if(existingUsers[t->getSender()]->elementExists(t->getIP()) == false){
                 if(verbose){
                     cout << "Fraudulent transaction detected, aborting request.\n";
                 }
@@ -257,18 +284,6 @@ class bank{
             string junkline;
             getline(cin, junkline);
         }
-        uint64_t convertIP(const string &s){
-            stringstream sin(s);
-            vector<uint64_t> nums;
-            string curr;
-            while(getline(sin, curr, '.')){
-                nums.push_back((uint64_t)(stoi(curr)));
-            }
-            getline(sin, curr);
-            nums.push_back(((uint64_t)stoi(curr)));
-
-            return summarizeTS(nums);
-        }
 
 
         void readQueries(){
@@ -332,39 +347,41 @@ class bank{
         void login(){
             string userID;
             uint64_t pin;
-            string longFormIP;
-            uint64_t ip;
-            cin >> userID >> pin >> longFormIP;
-            ip = convertIP(longFormIP);
-            if(existingUsers.find(userID) != existingUsers.end() && existingUsers[userID] != nullptr){
+            string ip;
+            cin >> userID >> pin >> ip;
+            if(existingUsers.find(userID) != existingUsers.end()){
                 if(existingUsers[userID]->getPin() == pin){
-                    userIPs[userID].insert(ip);
                     existingUsers[userID]->makeActive();
+                    existingUsers[userID]->pushBackDeque(ip);
                     if(verbose){
                         cout << "User " << userID << " logged in.\n";
                     }
-                    return;
+                }
+                else{
+                    if(verbose){
+                        cout << "Failed to log in " << userID << ".\n";
+                    }
                 }
             }
-            if(verbose){
-                cout << "Failed to log in " << userID << ".\n";
+            else{
+                if(verbose){
+                    cout << "Failed to log in " << userID << ".\n";
+                }
             }
         }
         //logs user out according to rules
         void logout(){
             string userID;
-            string longFormIP;
-            uint64_t ip;
-            cin >> userID >> longFormIP;
-            ip = convertIP(longFormIP);
+            string ip;
+            cin >> userID >> ip;
 
             if(existingUsers.find(userID) != existingUsers.end()){
                 // If the user has an active session and the IP is an IP the user logged in with before,
-                if(existingUsers[userID]->getActive() && (userIPs[userID].find(ip) != userIPs[userID].end())){
+                if(existingUsers[userID]->getActive() && (existingUsers[userID]->elementExists(ip))){
                     // this logs them out, 
                     existingUsers[userID]->deActive();
                     // and removes that IP from the valid IP list for that user. 
-                    userIPs[userID].erase(ip);
+                    existingUsers[userID]->removeElt(ip);
 
                     // If the user successfully logs out and the verbose flag is set, 
                     //print User <USER_ID> logged out.
@@ -384,31 +401,20 @@ class bank{
         }
 
         void place(){
-            // Usage: place <TIMESTAMP> <IP> <SENDER> <RECIPIENT> <AMOUNT> <EXEC_DATE> <o/s>
-            // This command will have 7 parts, the timestamp at which the order is placed, 
-            //     the IP of the sender, 
-            //     the sender ID, 
-            //     the recipient ID, 
-            //     the transaction amount, 
-            //     proposed execution date, 
-            //     and whether the transaction fee is covered by our account 
-            //         (o, meaning the sender) 
-            //         or shared equally between the sender and the recipient (s). 
             string stringFormtimestamp;
-            string longFormIP;
+            string ip;
             string sender;
             string recipient;
             uint64_t amount;
             string stringFormExecDate;
             char oORs;
 
-            cin >> stringFormtimestamp >> longFormIP >> sender >> recipient 
+            cin >> stringFormtimestamp >> ip >> sender >> recipient 
                     >> amount >> stringFormExecDate >> oORs;
             
             //do all conversions from strings to uint64_t for what requires it
             uint64_t timestamp = convertTimestamp(stringFormtimestamp);
             uint64_t execDate = convertTimestamp(stringFormExecDate);
-            uint64_t ip = convertIP(longFormIP);
             bool shared = false;
             if(oORs == 'o'){
                 shared = false;
@@ -451,22 +457,23 @@ class bank{
                 place();
             }
         }
+        /*
+        uint64_t year_exec_date = exec_date % 100000000000ull / 10000000000ull;
+            uint64_t year_regis_date = sender_regis_date % 100000000000ull / 10000000000ull;
+        */
 
-        bool hasBeenLoyal(const string& userID, const string &transactionTimestamp){
-            string userYearCreated = existingUsers[userID]->getStringTimestamp().substr(0, 2);
-            string transactionYear = transactionTimestamp.substr(0, 2);
-            
-            int userInt = (stoi)(userYearCreated);
-            int tInt = (stoi)(transactionYear);
-
-            if(tInt - userInt > 5){
+        bool hasBeenLoyal(const string& userID, const uint64_t &transactionTimestamp){
+            uint64_t yearExecution = transactionTimestamp % 100000000000ull / 100000000000ull;
+            uint64_t yearRegistration = existingUsers[userID]->getTimestamp() % 100000000000ull / 100000000000ull;
+        
+            if(yearExecution - yearRegistration >= 5){
                 return true;
             }
             return false;
         }
 
         uint64_t calcFee(const uint64_t &amount){
-            uint64_t fee = (uint64_t)((int)amount / 100);
+            uint64_t fee = (amount / 100);
             if(fee < 10){
                 return 10;
             }
@@ -482,9 +489,10 @@ class bank{
             if(!t->isShared()){
                 uint64_t totalAmt = t->getAmount();
                 uint64_t fee = calcFee(t->getAmount());
-                if(hasBeenLoyal(t->getSender(), t->getExecString())){
+                if(hasBeenLoyal(t->getSender(), t->getExecutionDate())){
                     fee = (fee * 3) / 4;
                 }
+                t->setFee(fee);
                 totalAmt += fee;
                 if(hasSufficientFunds(t->getSender(), totalAmt)){
                     existingUsers[t->getSender()]->removeMoney(totalAmt);
@@ -506,9 +514,10 @@ class bank{
                 //shared means the fee is shared between the two parties
                 uint64_t totalAmt = t->getAmount();
                 uint64_t fee = calcFee(t->getAmount());
-                if(hasBeenLoyal(t->getSender(), t->getExecString())){
+                if(hasBeenLoyal(t->getSender(), t->getExecutionDate())){
                     fee = (fee * 3) / 4;
                 }
+                t->setFee(fee);
                 //first make both set equal to fee/2
                 uint64_t senderFee = fee/2;
                 uint64_t receiverFee = fee/2;
@@ -587,41 +596,73 @@ class bank{
         }
 
 
-        string numTimePassedInInterval(const string& s1, const string& s2){
-            stringstream output;
-            string noColonX = removeColons(s1);
-            string noColonY = removeColons(s2);
+        void numTimePassedInInterval(const string& s1, const string& s2){
+            uint64_t x = convertTimestamp(s1);
+            uint64_t y = convertTimestamp(s2);
 
-            int years = ((stoi(noColonY.substr(0,2))) - (stoi(noColonX.substr(0,2))));
-            int months = ((stoi(noColonY.substr(2,2))) - (stoi(noColonX.substr(2,2))));
-            int days = ((stoi(noColonY.substr(4,2))) - (stoi(noColonX.substr(4,2))));
-            int hours = ((stoi(noColonY.substr(6,2))) - (stoi(noColonX.substr(6,2))));
-            int minutes = ((stoi(noColonY.substr(8,2))) - (stoi(noColonX.substr(8,2))));
-            int seconds = ((stoi(noColonY.substr(10,2))) - (stoi(noColonX.substr(10,2))));
+            uint64_t difference = y - x;
 
-            
-            const char* units[] = {"years","months","days","hours","minutes","seconds"};
-            int unitValues[] = {years, months, days, hours, minutes, seconds};
-            for(uint64_t i = 0; i < sizeof(unitValues) / sizeof(unitValues[0]); i++ ){
-                if(unitValues[i] != 0){
-                    if(unitValues[i] < 0){
-                        unitValues[i] += 100;
-                        unitValues[i - 1]--;
-                    }
+            uint64_t years = difference % 1000000000000ull / 10000000000ull;
+            uint64_t months = difference % 10000000000ull / 100000000ull;
+            uint64_t days = difference % 100000000ull / 1000000ull;
+            uint64_t hours = difference % 1000000ull / 10000ull;
+            uint64_t minutes = difference % 10000ull / 100ull;
+            uint64_t seconds = difference % 100ull;
+
+            if(years != 0){
+                if(years > 1){
+                    cout << years << " years ";
+                }
+                else{
+                     cout << years << " year ";
                 }
             }
-            for(uint64_t i = 0; i < sizeof(unitValues) / sizeof(unitValues[0]); i++ ){
-                if(unitValues[i] != 0){
-                    output << " " << abs((double)unitValues[i]) << " " << units[i];
+            if(months != 0){
+                if(months > 1){
+                    cout << months << " months " ;
+                }
+                else{
+                     cout << months << " month ";
                 }
             }
-
-            output << ".";
-            string toReturn = output.str();
-            return toReturn; 
+            if(days != 0){
+                if(days > 1){
+                    cout << days << " days " ;
+                }
+                else{
+                     cout << days << " day ";
+                }
+            }
+            if(hours != 0){
+                if(hours > 1){
+                    cout << hours << " hours " ;
+                }
+                else{
+                     cout << hours << " hour ";
+                }
+            }
+            if(minutes != 0){
+                if(minutes > 1){
+                    cout << minutes << " minutes " ;
+                }
+                else{
+                     cout << minutes << " minute ";
+                }
+            }
+            if(seconds != 0){
+                if(seconds > 1){
+                    cout << seconds << " seconds";
+                }
+                else{
+                     cout << seconds << " second";
+                }
+            }
+            cout << ".";
         }
 
+
         void runBankRevenue(){
+            
             string stringForX;
             string stringForY;
             cin >> stringForX >> stringForY;
@@ -630,17 +671,16 @@ class bank{
             uint64_t y = convertTimestamp(stringForY);
 
             uint64_t amountGenerated = 0;
+
             for(auto &t: transactionMasterList){
                 if(t->getExecutionDate() >= x && t->getExecutionDate() < y){
-                    uint64_t fee = calcFee(t->getAmount());
-                    if(hasBeenLoyal(t->getSender(), t->getExecString())){
-                        fee = (fee * 3) / 4;
-                    }
-                    amountGenerated += fee;
+                    amountGenerated += t->getFee();
                 }
             }
-            cout << "281Bank has collected " << amountGenerated << " dollars in fees over"
-            << numTimePassedInInterval(stringForX, stringForY) << "\n";
+
+            cout << "281Bank has collected " << amountGenerated << " dollars in fees over ";
+            numTimePassedInInterval(stringForX, stringForY);
+            cout << "\n";
         }
 
         void runHistory(){
@@ -698,8 +738,7 @@ class bank{
             }
             else{
                 cout << "User " << userID << " does not exist.\n";
-            }
-            
+            }    
         }
 
         string noZeros(const string &timestamp){
@@ -717,10 +756,6 @@ class bank{
             lowerstring.replace(9, 2, "00");
             lowerstring.replace(12, 2, "00");
             lowerstring.replace(15, 2, "00");
-
-            if(lowerstring[0] == '0'){
-                lowerstring = lowerstring.substr(1);
-            }
             return make_pair(removeColons(lowerstring), convertTimestamp(lowerstring)); 
         }
         
@@ -741,9 +776,6 @@ class bank{
             upperstring.replace(9, 2, "00");
             upperstring.replace(12, 2, "00");
             upperstring.replace(15, 2, "00");
-            if(upperstring[0] == '0'){
-                upperstring = upperstring.substr(1);
-            }
             return make_pair(removeColons(upperstring), convertTimestamp(upperstring)); 
         }
 
@@ -757,15 +789,11 @@ class bank{
 
             uint64_t amountGenerated = 0;
 
-            cout << "Summary of [" << lower.first << ", " << upper.first << "):\n";
+            cout << "Summary of [" << noZeros(lower.first) << ", " << noZeros(upper.first) << "):\n";
             int counter = 0;
             for(auto &t: transactionMasterList){
                 if(t->getExecutionDate() >= lower.second && t->getExecutionDate() < upper.second){
-                    uint64_t fee = calcFee(t->getAmount());
-                    if(hasBeenLoyal(t->getSender(), t->getExecString())){
-                        fee = (fee * 3) / 4;
-                    }
-                    amountGenerated += fee;
+                    amountGenerated += t->getFee();
                     cout << t->getTransactionID() << ": " << t->getSender() << " sent "
                     << t->getAmount() << " dollars to " << t->getReceiver() << " at " << 
                     noZeros(t->getExecString()) << ".\n";
