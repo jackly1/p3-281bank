@@ -135,10 +135,10 @@ class User{
         uint64_t numReceived(){
             return transactionsReceived;
         }
-        void pushBackDeque(const string &s){
+        void pushBackDeque(string s){
             ips.push_back(s);
         }
-        void removeElt(const string &s){
+        void removeElt(string s){
             int counter = 0;
             for(auto curr: ips){
                 if(curr == s){
@@ -148,7 +148,7 @@ class User{
                 counter++;
             }
         }
-        bool elementExists(const string &s){
+        bool elementExists(string s){
             for(auto curr: ips){
                 if(curr == s){
                     return true;
@@ -191,6 +191,7 @@ class bank{
         priority_queue<Transaction*,  vector<Transaction*>, chronologicalComparator> chronologicalTransactions;
         vector<Transaction*> transactionMasterList;
         uint64_t transactionIDCounter = 0;
+        uint64_t lastPlacedTimestamp = 0;
 
         void throwFileError(){
             cerr << "file name not provided\n";
@@ -422,22 +423,38 @@ class bank{
             else if(oORs == 's'){
                 shared = true;
             }
-            Transaction* currTransaction = new Transaction(timestamp, stringFormtimestamp ,ip, sender, recipient, amount, execDate, shared, stringFormExecDate);
-            bool isGood = validateTransaction(currTransaction);
-            if(isGood){
-                isGood = checkFraudulent(currTransaction);
+            if(lastPlacedTimestamp == 0){
+                lastPlacedTimestamp = timestamp;
             }
-            //now execute transactions <= the transaction
-            executeLessThanEqual(currTransaction);
-            if(isGood){
-                currTransaction->setTransactionID(generateNewID());
-                if(verbose){
-                    cout << "Transaction placed at " << noZeros(stringFormtimestamp) << ": $" << amount 
-                    << " from " << sender << " to " << recipient << " at " << noZeros(stringFormExecDate) << ".\n";
+            if(timestamp >= lastPlacedTimestamp && execDate >= timestamp){
+                Transaction* currTransaction = new Transaction(timestamp, stringFormtimestamp ,ip, sender, recipient, amount, execDate, shared, stringFormExecDate);
+                
+                bool isGood = validateTransaction(currTransaction);
+                if(isGood){
+                    isGood = checkFraudulent(currTransaction);
                 }
-                transactionMasterList.push_back(currTransaction);
-                pendingTransactions.push(currTransaction);
-                chronologicalTransactions.push(currTransaction);
+                //now execute transactions <= the transaction
+                executeLessThanEqual(currTransaction);
+                if(isGood){
+                    currTransaction->setTransactionID(generateNewID());
+                    if(verbose){
+                        cout << "Transaction placed at " << noZeros(stringFormtimestamp) << ": $" << amount 
+                        << " from " << sender << " to " << recipient << " at " << noZeros(stringFormExecDate) << ".\n";
+                    }
+                    transactionMasterList.push_back(currTransaction);
+                    pendingTransactions.push(currTransaction);
+                    chronologicalTransactions.push(currTransaction);
+                    lastPlacedTimestamp = timestamp;
+                }
+            }
+            else{
+                if(timestamp < lastPlacedTimestamp){
+                    cerr << "Invalid decreasing timestamp in 'place' command.";
+                }
+                if(execDate < timestamp){
+                    cerr << "You cannot have an execution date before the current timestamp.";
+                }
+                exit(1);
             }
         }
 
@@ -457,16 +474,12 @@ class bank{
                 place();
             }
         }
-        /*
-        uint64_t year_exec_date = exec_date % 100000000000ull / 10000000000ull;
-            uint64_t year_regis_date = sender_regis_date % 100000000000ull / 10000000000ull;
-        */
 
         bool hasBeenLoyal(const string& userID, const uint64_t &transactionTimestamp){
             uint64_t yearExecution = transactionTimestamp % 100000000000ull / 100000000000ull;
             uint64_t yearRegistration = existingUsers[userID]->getTimestamp() % 100000000000ull / 100000000000ull;
         
-            if(yearExecution - yearRegistration >= 5){
+            if(yearExecution - yearRegistration > 50000000000ull){
                 return true;
             }
             return false;
@@ -474,11 +487,11 @@ class bank{
 
         uint64_t calcFee(const uint64_t &amount){
             uint64_t fee = (amount / 100);
-            if(fee < 10){
-                return 10;
-            }
-            else if (fee > 450){
+            if(fee > 450){
                 return 450;
+            }
+            else if (fee < 10){
+                return 10;
             }
             else{
                 return fee;
@@ -525,8 +538,6 @@ class bank{
                 if(fee % 2 != 0){
                     //make the sender fee a rounded up fee/2 
                     senderFee = (fee/2) + 1;
-                    //make the reciever a truncated fee/2
-                    receiverFee = fee/2;
                 }
                 totalAmt += senderFee;
                 if(hasSufficientFunds(t->getSender(), totalAmt) && hasSufficientFunds(t->getReceiver(), receiverFee)){
@@ -843,11 +854,10 @@ class bank{
                         file = true;
                         break;
                     
-                    
-                    // default:
-                    //     cerr << "Error: invalid command line provided\n";
-                    //     cerr << "See -h or --help for details\n";
-                    //     exit(1);
+                     default:
+                         cerr << "Error: invalid command line provided\n";
+                         cerr << "See -h or --help for details\n";
+                         exit(1);
                 }  // switch ..choice
             }  // whiles
             if(!file){
