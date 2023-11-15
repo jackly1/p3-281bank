@@ -745,15 +745,6 @@ class bank{
             }    
         }
 
-        string noZeros(const string &timestamp){
-            string noColon = removeColons(timestamp);
-
-            if(noColon[0] == '0'){
-                return noColon.substr(1);
-            }
-            return noColon;
-        }
-
         void runSummarizeDay(){
             string timestamp;
             cin >> timestamp;
@@ -799,8 +790,7 @@ class bank{
             }
             
         }
-    public:
-        void clearPointers(){
+        void cleanUpPointers(){
             for(auto &t:transactionMasterList){
                 delete t;
             }
@@ -808,10 +798,12 @@ class bank{
                 delete u.second;
             }
         }
+    public:
         void read(){
             readCommands();
             executeTransactions();
             readQueries();
+            cleanUpPointers();
         }
         
         void getMode(int argc, char * argv[]) {
