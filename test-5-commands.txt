@@ -41,7 +41,3 @@ out mertg 230.43.171.61
 out mertg 232.43.171.61
 #The operations section ends with $$$, followed by the queries (if any).
 $$$
-l 08:02:02:40:22:34 08:03:02:40:23:46
-r 
-h
-s

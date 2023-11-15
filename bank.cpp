@@ -315,15 +315,6 @@ class bank{
                 cin >> curr;
             }
         }
-        string removeColons(const string &s){
-            string toReturn;
-            for(uint64_t i = 0; i < s.length(); i++){
-                if(s[i] != ':'){
-                    toReturn += s[i];
-                }
-            }
-            return toReturn;
-        }
         //logs user in according to rules
         void login(){
             string userID;
@@ -379,6 +370,13 @@ class bank{
                     }
                 }
             }
+            else{
+                //If the IP doesn’t match any of the IP’s that the user has previously 
+                //logged in with and the verbose flag is set, print Failed to log out <USER_ID>. 
+                if(verbose){
+                    cout << "Failed to log out " << userID << ".\n";
+                }
+            }
 
         }
 
@@ -423,7 +421,6 @@ class bank{
                         cout << "Transaction placed at " << currTransaction->getPlacementTime() << ": $" << amount 
                         << " from " << sender << " to " << recipient << " at " << currTransaction->getExecutionDate() << ".\n";
                     }
-                    transactionMasterList.push_back(currTransaction);
                     pendingTransactions.push(currTransaction);
                     lastPlacedTimestamp = timestamp;
                 }
@@ -480,6 +477,7 @@ class bank{
         }
 
         void execute(Transaction* t){
+            transactionMasterList.push_back(t);
             if(!t->isShared()){
                 uint64_t totalAmt = t->getAmount();
                 uint64_t fee = calcFee(t);
@@ -579,12 +577,12 @@ class bank{
                     break;
                 }
             }
-            if(numTransactions > 1){
-                cout << "There were " << numTransactions << " transactions that were placed between time "
+            if(numTransactions == 1){
+                cout << "There was " << numTransactions << " transaction that was placed between time "
                 << x << " to " << y << ".\n";
             }
             else{
-                cout << "There was " << numTransactions << " transaction that was placed between time "
+                cout << "There were " << numTransactions << " transactions that were placed between time "
                 << x << " to " << y << ".\n";
             }
         }
