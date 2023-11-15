@@ -12,7 +12,7 @@ using namespace std;
 4338424  5283760  6330490  
 7235047  8087950  9017082  
 0883975*/
-//caen runner: rsync -rtv --exclude '.git*' ../p1-puzzle/ jackly@login-course.engin.umich.edu:/p1-puzzle-copy/
+//caen runner: rsync -rtv --exclude '.git*' ../p3-281bank/ jackly@login-course.engin.umich.edu:/p3-281bank-copy/
 //ssh jackly@login-course.engin.umich.edu
 
 int main(int argc, char *argv[]) {

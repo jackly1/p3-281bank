@@ -19,20 +19,18 @@ using namespace std;
 class Transaction{
     private:
         uint64_t placementTime;
-        string stringFormPlacementTime;
         string senderIP;
         string sender;
         string receiver;
         uint64_t amount;
         uint64_t executionDate;
         uint64_t fee;
-        string stringFromExecDate;
         bool shared;
         uint64_t transactionID;
     public:
     //constructor
-        Transaction(const uint64_t &pt, const string &sfpt, const string &si, const string &s, const string &r, const uint64_t &a, const uint64_t &ed, const bool &o, const string &sed)
-        : placementTime(pt), stringFormPlacementTime(sfpt), senderIP(si), sender(s), receiver(r), amount(a), executionDate(ed), fee(0), stringFromExecDate(sed), shared(o), transactionID(0){}
+        Transaction(const uint64_t &pt, const string &si, const string &s, const string &r, const uint64_t &a, const uint64_t &ed, const bool &o)
+        : placementTime(pt), senderIP(si), sender(s), receiver(r), amount(a), executionDate(ed), fee(0), shared(o), transactionID(0){}
 
         uint64_t getPlacementTime(){
             return placementTime;
@@ -61,9 +59,6 @@ class Transaction{
         bool isShared(){
             return shared;
         }
-        string getExecString(){
-            return stringFromExecDate;
-        }
         void setTransactionID(const uint64_t &n){
             transactionID = n;
         }
@@ -73,17 +68,9 @@ class Transaction{
 
 };
 
-class lowerBoundComparator{
-    public:
-        bool operator()(Transaction* t1, const uint64_t &executionDate){
-            return t1->getExecutionDate() > executionDate;
-        }
-};
-
 class User{
     private:
         uint64_t regTimestamp;
-        string stringTimestamp;
         string id;
         uint64_t pin;
         uint64_t balance;
@@ -93,15 +80,11 @@ class User{
         uint64_t transactionsReceived;
     public:
         //constructor
-        User(const uint64_t &ts, const string &stringts, const string &i, const uint64_t &p, const uint64_t &sb)
-        : regTimestamp(ts), stringTimestamp(stringts), id(i), pin(p), balance(sb), activeSession(false), transactionsSent(0), transactionsReceived(0){}
+        User(const uint64_t &ts, const string &i, const uint64_t &p, const uint64_t &sb)
+        : regTimestamp(ts), id(i), pin(p), balance(sb), activeSession(false), transactionsSent(0), transactionsReceived(0){}
 
         uint64_t getTimestamp(){
             return regTimestamp;
-        }
-
-        string getStringTimestamp(){
-            return stringTimestamp;
         }
         void addMoney(const uint64_t &n){
             balance += n;
@@ -150,6 +133,13 @@ class User{
         }
 };
 
+class lowerBoundComparator{
+    public:
+        bool operator()(Transaction* t1, const uint64_t &executionDate){
+            return t1->getExecutionDate() > executionDate;
+        }
+};
+
 class bank{
     private:
         class executionComparator{
@@ -168,7 +158,6 @@ class bank{
         bool verbose = false;
         unordered_map<string, User*> existingUsers;
         priority_queue<Transaction*, vector<Transaction*>, executionComparator> pendingTransactions;
-        priority_queue<Transaction*,  vector<Transaction*>, executionComparator> chronologicalTransactions;
         vector<Transaction*> transactionMasterList;
         uint64_t transactionIDCounter = 0;
         uint64_t lastPlacedTimestamp = 0;
@@ -312,7 +301,7 @@ class bank{
                 uint64_t pin = stoull(p);
                 uint64_t startBalance = stoull(sb);
                 //creates a new user with above info
-                User* newU = new User(convertTimestamp(ts), ts, i, pin, startBalance);
+                User* newU = new User(convertTimestamp(ts), i, pin, startBalance);
                 
                 //adds the newuser to the existingUsers hash table at <userID, User*>
                 existingUsers[i] = newU;
@@ -420,7 +409,7 @@ class bank{
                 lastPlacedTimestamp = timestamp;
             }
             if(timestamp >= lastPlacedTimestamp && execDate >= timestamp){
-                Transaction* currTransaction = new Transaction(timestamp, stringFormtimestamp ,ip, sender, recipient, amount, execDate, shared, stringFormExecDate);
+                Transaction* currTransaction = new Transaction(timestamp, ip, sender, recipient, amount, execDate, shared);
                 
                 bool isGood = validateTransaction(currTransaction);
                 if(isGood){
@@ -436,7 +425,6 @@ class bank{
                     }
                     transactionMasterList.push_back(currTransaction);
                     pendingTransactions.push(currTransaction);
-                    chronologicalTransactions.push(currTransaction);
                     lastPlacedTimestamp = timestamp;
                 }
             }
@@ -573,21 +561,23 @@ class bank{
 
             uint64_t numTransactions = 0;
             
-            while(!chronologicalTransactions.empty()){
-                if(chronologicalTransactions.top()->getExecutionDate() >= x && chronologicalTransactions.top()->getExecutionDate() < y){
-                    if(chronologicalTransactions.top()->getAmount() != 1){
-                        cout << chronologicalTransactions.top()->getTransactionID() << ": " << chronologicalTransactions.top()->getSender() 
-                        << " sent " << chronologicalTransactions.top()->getAmount() << " dollars to " << chronologicalTransactions.top()->getReceiver()
-                        << " at " << chronologicalTransactions.top()->getExecutionDate() << ".\n";
+            for(auto &t: transactionMasterList){
+                if(t->getExecutionDate() >= x && t->getExecutionDate() < y){
+                    if(t->getAmount() != 1){
+                        cout << t->getTransactionID() << ": " << t->getSender() 
+                        << " sent " << t->getAmount() << " dollars to " << t->getReceiver()
+                        << " at " << t->getExecutionDate() << ".\n";
                     }
                     else{
-                        cout << chronologicalTransactions.top()->getTransactionID() << ": " << chronologicalTransactions.top()->getSender() 
-                        << " sent " << chronologicalTransactions.top()->getAmount() << " dollar to " << chronologicalTransactions.top()->getReceiver()
-                        << " at " << chronologicalTransactions.top()->getExecutionDate() << ".\n";
+                        cout << t->getTransactionID() << ": " << t->getSender() 
+                        << " sent " << t->getAmount() << " dollar to " << t->getReceiver()
+                        << " at " << t->getExecutionDate() << ".\n";
                     }
                     numTransactions++;
                 }
-                chronologicalTransactions.pop();
+                else if(t->getExecutionDate() >= y){
+                    break;
+                }
             }
             if(numTransactions > 1){
                 cout << "There were " << numTransactions << " transactions that were placed between time "
